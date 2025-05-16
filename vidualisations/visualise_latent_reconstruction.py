@@ -1,0 +1,349 @@
+# Plot latent reconstruction of trained model.
+
+# Usage:
+# python visualise_latent_reconstruction.py --config RGB2RGB-on-all-garment-800k \
+# --data_path gc_dress_flattening_offline_rl_mix_200k_compressed  \
+# --model_dir ../test_results
+
+import argparse
+import cv2
+import os
+import numpy as np
+import torch
+from skimage.metrics import structural_similarity as ssim
+from skimage.metrics import mean_squared_error as mse
+from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity as LPIPS
+from torchmetrics.image.kid import KernelInceptionDistance
+from torchmetrics.image.fid import FrechetInceptionDistance
+
+import agent_arena.api as ag_ar
+from agent_arena.utilities.visual_utils import plot_image_trajectory
+from agent_arena.utilities.trajectory_dataset \
+    import TrajectoryDataset
+from agent_arena.agent.utilities.torch_utils import *
+
+
+from utils import obs_config, compress_obs_config, reward_names, plot_results, evaluation_names
+from controllers.planet.rssm import RSSM
+
+action_config = {
+    'norm-pixel-pick-and-place': {'shape': (2, 2), 'output_key': 'default'},
+}
+
+# TODO: put this into agent-arena.
+def print_information(data, indent=2):
+    """
+    Recursively prints the structure and details of the data in a tree-like format.
+    :param data: The data structure to be printed (dict, list, np.ndarray, etc.)
+    :param indent: The current level of indentation for tree structure
+    """
+    # Create an indentation string based on the current level
+    prefix = " " * indent
+
+    if isinstance(data, dict):
+        for key, value in data.items():
+            print(f"{prefix}{key}:")
+            print_information(value, indent + 4)  # Increase indentation for nested structures
+    elif isinstance(data, list):
+        print(f"{prefix}List of {len(data)} items:")
+        print_information(data[0], indent + 4)
+    elif isinstance(data, np.ndarray):
+        print(f"{prefix}Numpy array with shape {data.shape}, type {data.dtype}")
+    elif isinstance(data, torch.Tensor):
+        print(f"{prefix}PyTorch tensor with shape {data.shape}, type {data.type}")
+    else:
+        print(f"{prefix}scalar with type {type(data)}")
+
+# Initialize LPIPS model
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+lpips_model = LPIPS(net='squeeze', normalise=True).to(device)
+kid = KernelInceptionDistance(normalize=True, subset_size=5).to(device)
+fid = FrechetInceptionDistance(feature=64, normalize=True).to(device)
+
+# Lower LPIPS indicates higher similarity (better perceptual quality).
+
+def mse_score(x, y):
+    """
+    Calculate the MSE score between two images, ranged between 0 and 1.
+    :param x: First image (numpy array)
+    :param y: Second image (numpy array)
+    :return: MSE score
+    """
+    # Convert images to PyTorch tensors and move to GPU if available
+    # x = torch.from_numpy(x).permute(0, 3, 1, 2).unsqueeze(0).float().to(device)
+    # y = torch.from_numpy(y).permute(0, 3, 1, 2).unsqueeze(0).float().to(device)
+
+    # Calculate MSE score
+    return mse(x, y) #.item()
+
+def lipips_score(x, y):
+    """
+    Calculate the LPIPS score between two images, ranged between 0 and 1.
+    :param x: First image (numpy array)
+    :param y: Second image (numpy array)
+    :return: LPIPS score
+    """
+    # Convert images to PyTorch tensors and move to GPU if available
+    x = torch.from_numpy(x).permute(0, 3, 1, 2).float().to(device)
+    y = torch.from_numpy(y).permute(0, 3, 1, 2).float().to(device)
+    # Normalize images to the range [-1, 1]
+    x = x * 2 - 1
+    y = y * 2 - 1
+
+    # Calculate LPIPS score
+    return lpips_model(x, y).item()
+
+def ssim_score(x, y):
+    """
+    Calculate the SSIM score between two images, ranged between 0 and 1.
+    :param x: First image (numpy array)
+    :param y: Second image (numpy array)
+    :return: SSIM score
+    """
+    # Convert images to PyTorch tensors and move to GPU if available
+    # x = torch.from_numpy(x).permute(0, 3, 1, 2).unsqueeze(0).float().to(device)
+    # y = torch.from_numpy(y).permute(0, 3, 1, 2).unsqueeze(0).float().to(device)
+
+    # Calculate SSIM score
+    return ssim(x, y, data_range=1.0, channel_axis=-1)
+    
+
+def kid_score(x, y):
+    """
+    Calculate the KID score between two images, input ranged between 0 and 1.
+    :param x: First image (numpy array)
+    :param y: Second image (numpy array)
+    :return: KID score
+    """
+    # Convert images to PyTorch tensors and move to GPU if available
+    x = torch.from_numpy(x).permute(0, 3, 1, 2).float().to(device)
+    y = torch.from_numpy(y).permute(0, 3, 1, 2).float().to(device)
+
+    # Calculate KID score
+    kid.update(x, real=True)
+    kid.update(y, real=False)
+    score = kid.compute()
+    kid.reset()
+    #print('KID score:', score)
+
+    return score[0].item()
+
+def fid_score(x, y):
+    """
+    Calculate the FID score between two images, input ranged between 0 and 1.
+    :param x: First image (numpy array)
+    :param y: Second image (numpy array)
+    :return: FID score
+    """
+    # Convert images to PyTorch tensors and move to GPU if available
+    x = torch.from_numpy(x).permute(0, 3, 1, 2).float().to(device)
+    y = torch.from_numpy(y).permute(0, 3, 1, 2).float().to(device)
+
+    # Calculate FID score
+    fid.update(x, real=True)
+    fid.update(y, real=False)
+    score = fid.compute()
+
+    return score.item()
+
+def main():
+
+    ### Argument Parsing
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--config',  default='RGB2M-on-mix-200k-sf')
+    parser.add_argument('--model_dir', default='/data/planet-clothpick++')
+    parser.add_argument('--verbose', default='silence', type=str)
+    parser.add_argument('--disp', default=0, type=int)
+    parser.add_argument('--eval_checkpoint', default='-1', type=int)
+    parser.add_argument('--object', default='longsleeve', type=str)
+    parser.add_argument('--data_path', type=str, default='gc_longsleeve_flattening_offline_rl_mix_200k_compressed')
+    parser.add_argument('--posterior_horizon', default=3)
+    parser.add_argument('--prior_horizon', default=3)
+    parser.add_argument('--sample_mode', default='eval')
+    parser.add_argument('--recon_format', default='rgb', type=str)
+    parser.add_argument('--trj_nums', type=int, default=1)
+
+    
+    args = parser.parse_args()
+
+    if args.disp == 1:
+        disp = True
+    elif args.disp == 0:
+        disp = False
+    
+    agent_name = "planet-clothpick++"
+    trained_arena = f"softgym|domain:clothfunnels-realadapt-{args.object},task:flattening,horizon:30"
+    
+
+    ## Load agent for latent visuslisation
+    config = ag_ar.retrieve_config(
+        agent_name, 
+        trained_arena, 
+        args.config,
+        config_dir='../configuration')
+
+    agent = RSSM(config)
+    model_dir = os.path.join(args.model_dir, trained_arena, agent_name, args.config)
+    agent.load(model_dir)
+
+    ## Load dataset
+    obs_config = config.datasets[0].params.obs_config.toDict()
+    act_config = config.datasets[0].params.act_config.toDict()
+    print('obs config', obs_config)
+
+    dataset = TrajectoryDataset(
+        data_path=args.data_path,
+        whole_trajectory=True,
+        io_mode='r',
+        sample_mode=args.sample_mode,
+        obs_config=obs_config,
+        act_config=act_config,
+        data_dir='../data'
+    )
+    ground_truths = []
+    recon_images = []
+    ### posterior
+    # scores = {
+    #     'mse': [],
+    #     'ssim': [],
+    #     'lpips': [],
+    #     'fid': [],
+    # }
+
+    metrics = {
+        'mse': lambda x, y: mse_score(x, y), # Lower MSE indicates better quality
+        'ssim': lambda x, y: ssim_score(x, y), # Higher SSIM indicates better quality
+        'lpips': lambda x, y: lipips_score(x, y), # Lower LPIPS indicates better quality
+        'fid': lambda x, y: fid_score(x, y), # Lower FID indicates better quality
+        'kid': lambda x, y: kid_score(x, y), # Lower KID indicates better quality
+    }
+
+    for i in range(args.trj_nums):
+        data = dataset[i]
+        #print(data.keys())
+        
+        observation_list = [{k: v[i] for k, v in data['observation'].items()} for i in range(10)]
+
+        ### Get Initial Latent State
+        init_info = {
+            'arena_id': 0,
+            'observation': observation_list[0]
+        }
+        agent.init([init_info])
+        init_latent_state = agent.get_state()[0]['latent_state']
+
+        ### Get Posterior Latent States
+        process_data = agent._preprocess(data, train=False, single=True)
+        #print(process_data['input_obs'].shape)     
+
+        input_state = init_latent_state
+        input_state['input_obs'] = process_data['input_obs'][1:args.posterior_horizon+1]
+
+        # print('\n!!!!! Input')
+        # print_information(input_state)
+
+        posterior_latent_states, last_post = agent.unroll_state_action(
+            input_state,
+            process_data['action'][:args.posterior_horizon]
+        )
+
+        # print('\n!!!!! Posterior Output')
+        # print_information(posterior_latent_states)
+        
+        posterior_recon_image = agent.visual_reconstruct(posterior_latent_states)
+
+        # print('\n!!!!! Posterior Recon')
+        # print_information(posterior_recon_image) # T, B, C, H, W
+
+        ### Get Piror Latent States
+        prior_lastent_states = agent.unroll_action(
+            last_post,
+            process_data['action'][args.posterior_horizon: args.posterior_horizon + args.prior_horizon]
+        )
+
+        # print('\n!!!!! Prior Output')
+        # print_information(prior_lastent_states)
+
+        prior_recon_image = agent.visual_reconstruct(prior_lastent_states)
+
+        # print('\n!!!!! Prior Recon')
+        # print_information(prior_recon_image)
+        filename = ''
+        if args.recon_format == 'rgb':
+            posterior_recon_image = (posterior_recon_image.clip(0, 1)*255)
+        plot_image_trajectory(
+            posterior_recon_image[:, 0], 
+            save_path='tmp/recon/trial_{}'.format(i),
+            title='posterior'
+        )
+
+        if args.recon_format == 'rgb':
+            prior_recon_image = (prior_recon_image.clip(0, 1)*255)
+
+        plot_image_trajectory(
+            prior_recon_image[:, 0], 
+            save_path='tmp/recon/trial_{}'.format(i),
+            title='prior'
+        )
+
+        gt = ts_to_np(process_data['output_obs'][1: args.posterior_horizon + args.prior_horizon + 1])\
+            .transpose(0, 1, 3, 4, 2)
+        if args.recon_format == 'rgb':
+            gt = (gt*255)
+        print('gt shape', gt.shape)
+
+        plot_image_trajectory(
+            gt[:, 0],
+            save_path='tmp/recon/trial_{}'.format(i),
+            title='ground_truth'
+        )
+
+        recon_image = np.concatenate((posterior_recon_image, prior_recon_image), axis=0)
+        gt = (gt[:, 0]/255).clip(0, 1)
+        recon_image = (recon_image[:, 0]/255).clip(0, 1)
+
+        ground_truths.append(gt)
+        recon_images.append(recon_image)
+
+        # for k, v in scores.items():
+        #     scores[k].append([metrics[k](gt[i], recon_image[i]) for i in range(recon_image.shape[0])])
+        ## get the ssmi score 
+
+    # Posterior evaluation
+
+    # for k, v in scores.items():
+    #     scores[k] = np.array(v)
+    ground_truths = np.stack(ground_truths)
+    recon_images = np.stack(recon_images)
+    
+    # Ground turth to ground truth
+    gt_scores = {k: m(ground_truths.reshape(-1, 64, 64, 3), ground_truths.reshape(-1, 64, 64, 3))
+                for k, m in metrics.items()}
+    print('\n\n')
+    print('Trajectory Number:', args.trj_nums)
+    print('Ground Truth Evaluation on {} steps'.format(args.posterior_horizon + args.prior_horizon))
+    for k, v in gt_scores.items():
+        print('{}: {:.4f}'.format(k, v))
+
+    posterior_scores = {k: m(ground_truths[:, :args.posterior_horizon, :, :, :3].reshape(-1, 64, 64, 3), recon_images[:, :args.posterior_horizon, :, :, :3].reshape(-1, 64, 64, 3))
+                        for k, m in metrics.items()}
+
+    print('\n\n')
+    print('Trajectory Number:', args.trj_nums)
+    print('Posterior Evaluation on {} steps'.format(args.posterior_horizon))
+    for k, v in posterior_scores.items():
+        print('{}: {:.4f}'.format(k, v))
+
+    for i in range(args.prior_horizon):
+        prior_scores = {
+            k: m(ground_truths[:, args.posterior_horizon + i, :, :, :3], recon_images[:, args.posterior_horizon + i, :, :, :3])
+            for k, m in metrics.items()
+        }
+        print('\n\n')
+        print('{}-Step Prior Evaluation'.format(i+1))
+        
+        for k, v in prior_scores.items():
+            print('{}: {:.4f}'.format(k, v))
+
+if __name__ == '__main__':
+    main()
