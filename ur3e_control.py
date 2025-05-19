@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+# This script should be run under the conda envrionment of `ros2-humbel` branch of `agent-arena`
 
 import os
 import traceback
