@@ -173,38 +173,6 @@ class WorkspaceSamplerPlaNetClothPick(WorkspaceSampler):
                                    cloth_workspace_mask, workspace_mask, 
                                    info['arena_id']*100 + i, goal_depth_, goal_mask_, goal_rgb_)
             )
-
-            #print('crop_x, crop_y:', crop_x, crop_y)
-            # new_info = {'observation': {}}
-
-            # new_info['observation']['mask'] = mask[crop_x:crop_x+L, crop_y:crop_y+L] 
-            # new_info['observation']['cloth-workspace-mask'] = cloth_workspace_mask[crop_x:crop_x+L, crop_y:crop_y+L]
-            # # ## if the count of new mask is less thatn the count of orignal mask, continue
-            # # if np.sum(new_info['observation']['mask']) < np.sum(cloth_workspace_mask):
-            # #     continue
-
-            # new_info['observation']['rgb'] = rgb[crop_x:crop_x+L, crop_y:crop_y+L]
-            # new_info['observation']['depth'] = depth[crop_x:crop_x+L, crop_y:crop_y+L]
-            # if 'goal' in info:
-            #     new_info['observation']['goal_depth'] = goal_depth_
-            #     new_info['observation']['goal_mask'] = goal_mask_
-                
-                
-            
-
-            # new_infos.append(new_info)
-
-        
-            # plt.imsave('tmp/raw_rgb.png', rgb)
-            # plt.imsave('tmp/crop_rgb.png', new_info['observation']['rgb'])
-            # plt.imsave('tmp/raw_depth.png', depth.reshape(H, W, 1).repeat(3, axis=2))
-            # plt.imsave('tmp/crop_depth.png', new_info['observation']['depth'].reshape(L, L, 1).repeat(3, axis=2))
-            # # max and min depth of cropped depth
-            # print(np.max(new_info['observation']['depth']), np.min(new_info['observation']['depth']))
-            # plt.imsave('tmp/raw_mask.png', mask.reshape(H, W, 1).repeat(3, axis=2).astype(np.float32))
-            # plt.imsave('tmp/crop_mask.png', new_info['observation']['mask'].reshape(L, L, 1).repeat(3, axis=2).astype(np.float32))
-            # plt.imsave('tmp/raw_workspace_mask.png', workspace_mask.reshape(H, W, 1).repeat(3, axis=2).astype(np.float32))
-            
         return new_infos
     
     def _get_new_info(self, crop_x, crop_y, L, rgb, depth, mask, 
@@ -255,12 +223,34 @@ class WorkspaceSamplerPlaNetClothPick(WorkspaceSampler):
         new_info['padding'] = self.config.padding
         #print('arena_id:', arena_id)
         new_info['arena_id'] = arena_id
+
         if goal_depth_ is not None:
-            new_info['observation']['goal_depth'] = goal_depth_
+            new_info['observation']['goal-depth'] = np.pad(
+                goal_depth_,
+                ((self.config.padding, self.config.padding),
+                 (self.config.padding, self.config.padding), 
+                 (0, 0)),
+                'constant',
+                constant_values=0)
+            plt.imsave('tmp/sample_goal_depth.png', new_info['observation']['goal-depth'].squeeze())
+
         if goal_mask_ is not None:
-            new_info['observation']['goal_mask'] = goal_mask_
+            new_info['observation']['goal-mask'] = np.pad(
+                goal_mask_,
+                ((self.config.padding, self.config.padding),
+                    (self.config.padding, self.config.padding)),
+                'constant',
+                constant_values=0)
+            plt.imsave('tmp/sample_goal_mask.png', new_info['observation']['goal-mask'].squeeze())
+
         if goal_rgb_ is not None:
-            new_info['observation']['goal_rgb'] = goal_rgb_
+            new_info['observation']['goal-rgb'] = np.pad(
+                goal_rgb_,
+                ((self.config.padding, self.config.padding),
+                    (self.config.padding, self.config.padding), (0, 0)),
+                'constant',
+                constant_values=0)
+            plt.imsave('tmp/sample_goal_rgb.png', new_info['observation']['goal-rgb'])
         #print('new info', new_info['observation'].keys())
         return new_info
     

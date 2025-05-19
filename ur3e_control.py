@@ -143,6 +143,8 @@ def parse_arguments():
     parser.add_argument('--adjust_pick', action='store_true')
     parser.add_argument('--adjust_orien', action='store_true')
 
+    parser.add_argument('--goal_conditioned', action='store_true')
+
 
 
 
@@ -226,6 +228,7 @@ if __name__ == "__main__":
             depth_sim2real=args.depth_sim2real,
             mask_sim2real=args.mask_sim2real,
             sim_camera_height=args.sim_camera_height,
+            goal_conditioned=args.goal_conditioned,
             callback_on_internal_states=visualise_action_inference)
         
         sim2real.run()
