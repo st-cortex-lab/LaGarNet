@@ -302,6 +302,7 @@ class RSSM(TrainableAgent):
             'stoch_state': self.cur_state[arena_id]['stoch']['sample']\
                 .squeeze(1).cpu().detach().numpy(),
             'latent_state': self.cur_state[arena_id],
+            'input_type': self.config.input_obs,
         }
 
     def init(self, infos):

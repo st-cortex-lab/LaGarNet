@@ -9,10 +9,12 @@ import rclpy
 import agent_arena as agar
 
 import argparse
-from utils import *
-from agent_arena_interface import AgentArenaInterface
-from planet_clothpick_plus_plus.controllers.workspace_sampler_planet_clothpick \
+from robot_control_cloth.interface.utils import *
+from robot_control_cloth.interface.agent_arena_interface import AgentArenaInterface
+
+from controllers.workspace_sampler_planet_clothpick \
     import WorkspaceSamplerPlaNetClothPick
+from controllers.planet.rssm import RSSM
 from matplotlib import cm
 from agent_arena.utilities.visual_utils import \
     draw_pick_and_place, plot_image_trajectory
@@ -152,7 +154,7 @@ if __name__ == "__main__":
 
     max_steps = 20
 
-    agent_name = "planet-clothpick"
+    agent_name = "planet-clothpick++"
     trained_arena = f"softgym|domain:clothfunnels-realadapt-{args.object},task:flattening,horizon:30"
     # capitalise the first letter of object
     capitalised_obj = args.object[0].upper() + args.object[1:]
@@ -162,7 +164,8 @@ if __name__ == "__main__":
     config = agar.retrieve_config(
         agent_name, 
         trained_arena, 
-        args.agent_config)
+        args.agent_config,
+        config_dir='configuration')
     
     # TODO: Check if this is necessary
     config.transform.params.depth_clip_min = 0 #0.72
@@ -173,7 +176,8 @@ if __name__ == "__main__":
     config.transform.params.rgb_eval_process = False
     
 
-    agent = agar.build_agent(agent_name, config)
+    #agent = agar.build_agent(agent_name, config)
+    agent = RSSM(config)
     agent.set_eval()
     #logger = ag_ar.build_logger(arena.logger_name, config.save_dir)
     save_dir = os.path.join(
@@ -181,9 +185,7 @@ if __name__ == "__main__":
     model_dir = os.path.join(args.log_dir, trained_arena, f'{agent_name}', f'{args.agent_config}')
     agent.set_log_dir(model_dir)
 
-    config_file = os.path.join(
-        os.environ['AGENT_ARENA_PATH'], '../planet_clothpick_plus_plus',
-        'configs', args.sampler_config + '.yaml')
+    config_file = os.path.join('configs', args.sampler_config + '.yaml')
    
     with open(config_file, 'r') as f:
         worspace_sampler_config = yaml.safe_load(f)
@@ -210,6 +212,7 @@ if __name__ == "__main__":
     config_name = args.sampler_config + '+' + args.agent_config
     print('Finsh Initialising Agent ...')
 
+    sim2real = None
     try:
         rclpy.init()
         
@@ -230,6 +233,7 @@ if __name__ == "__main__":
         print(f'Caught exception: {e}')
         print('Stack trace:')
         traceback.print_exc()
-        sim2real.stop_video()
-        rclpy.try_shutdown()
-        sim2real.destroy_node()
+        if sim2real is not None:
+            sim2real.stop_video()
+            rclpy.try_shutdown()
+            sim2real.destroy_node()

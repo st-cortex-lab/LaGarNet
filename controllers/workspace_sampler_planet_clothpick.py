@@ -1,3 +1,4 @@
+import os
 import numpy as np
 from agent_arena.utilities.visual_utils \
     import draw_pick_and_place
@@ -18,6 +19,8 @@ class WorkspaceSamplerPlaNetClothPick(WorkspaceSampler):
     def __init__(self, config):
         super().__init__(config)
         self.agent = config.agent
+        if not os.path.exists('tmp'):
+            os.makedirs('tmp')
         #
         planning_config = self.config.policy.params
         planning_config.model = self
@@ -234,6 +237,7 @@ class WorkspaceSamplerPlaNetClothPick(WorkspaceSampler):
                 # squeeze the depth image to 2D
                 image_to_plot = image_to_plot.squeeze()
             # lot save the images
+            # create tmp directory if not exists
             plt.imsave(f'tmp/sample_{key}.png', image_to_plot)
 
         # plt the original image but the cropped image is dimmed
