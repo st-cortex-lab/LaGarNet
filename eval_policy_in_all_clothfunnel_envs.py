@@ -35,7 +35,7 @@ def main():
         config_dir='configuration')
     # create_message_logger(config.save_dir, args.verbose)
     model_dir = os.path.join(args.model_dir, trained_arena, agent_name, args.config)
-    save_dir = os.path.join(args.save_dir, agent_name, args.config, args.test_object)
+    #save_dir = os.path.join(args.save_dir, agent_name, args.config, args.test_object)
    
     eval_arena = f"softgym|domain:clothfunnels-realadapt-{args.test_object},task:flattening,horizon:30"
     arena = ag_ar.build_arena(f"{eval_arena},disp:{disp}")
@@ -51,6 +51,7 @@ def main():
     for obj in ['longsleeve', 'pants', 'skirt', 'dress']:
         eval_arena = f"softgym|domain:clothfunnels-realadapt-{obj},task:flattening,horizon:30"
         arena = ag_ar.build_arena(f"{eval_arena},disp:{disp}")
+        save_dir = os.path.join(args.save_dir, agent_name, args.config, obj)
         arena.set_log_dir(save_dir)
         agent.set_log_dir(model_dir)
         ag_ar.evaluate(agent, arena, checkpoint=-1)
