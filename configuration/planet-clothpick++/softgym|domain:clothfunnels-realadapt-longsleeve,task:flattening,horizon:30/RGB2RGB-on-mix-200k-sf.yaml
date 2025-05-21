@@ -1,4 +1,5 @@
 device: 'cuda:0'
+debug: False
 train_mode: 'offline'
 
 input_obs: "rgb"

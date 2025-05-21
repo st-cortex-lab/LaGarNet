@@ -1,3 +1,4 @@
+import os
 import numpy as np
 from agent_arena.utilities.visual_utils \
     import draw_pick_and_place
@@ -18,6 +19,8 @@ class WorkspaceSamplerPlaNetClothPick(WorkspaceSampler):
     def __init__(self, config):
         super().__init__(config)
         self.agent = config.agent
+        if not os.path.exists('tmp'):
+            os.makedirs('tmp')
         #
         planning_config = self.config.policy.params
         planning_config.model = self
@@ -85,6 +88,7 @@ class WorkspaceSamplerPlaNetClothPick(WorkspaceSampler):
             r_act = self._remap_action(best_action, info, new_infos[best_idx])
             ret_actions.append(best_action)
         self.last_actions = ret_actions
+        print('ret_actions:', ret_actions)
         print('ret_actions:', ret_actions)
         return ret_actions
             
@@ -169,41 +173,6 @@ class WorkspaceSamplerPlaNetClothPick(WorkspaceSampler):
                                    cloth_workspace_mask, workspace_mask, 
                                    info['arena_id']*100 + i, goal_depth_, goal_mask_, goal_rgb_)
             )
-
-            #print('crop_x, crop_y:', crop_x, crop_y)
-            # new_info = {'observation': {}}
-
-            # new_info['observation']['mask'] = mask[crop_x:crop_x+L, crop_y:crop_y+L] 
-            # new_info['observation']['cloth-workspace-mask'] = cloth_workspace_mask[crop_x:crop_x+L, crop_y:crop_y+L]
-            # # ## if the count of new mask is less thatn the count of orignal mask, continue
-            # # if np.sum(new_info['observation']['mask']) < np.sum(cloth_workspace_mask):
-            # #     continue
-
-            # new_info['observation']['rgb'] = rgb[crop_x:crop_x+L, crop_y:crop_y+L]
-            # new_info['observation']['depth'] = depth[crop_x:crop_x+L, crop_y:crop_y+L]
-            # if 'goal' in info:
-            #     new_info['observation']['goal_depth'] = goal_depth_
-            #     new_info['observation']['goal_mask'] = goal_mask_
-                
-            # new_info['observation']['workspace_mask'] = workspace_mask[crop_x:crop_x+L, crop_y:crop_y+L]
-            # new_info['crop_x'] = crop_x
-            # new_info['crop_y'] = crop_y
-            # new_info['crop_length'] = L
-            # new_info['arena_id'] = info['arena_id']*100 + i
-
-            # new_infos.append(new_info)
-
-        
-            # plt.imsave('tmp/raw_rgb.png', rgb)
-            # plt.imsave('tmp/crop_rgb.png', new_info['observation']['rgb'])
-            # plt.imsave('tmp/raw_depth.png', depth.reshape(H, W, 1).repeat(3, axis=2))
-            # plt.imsave('tmp/crop_depth.png', new_info['observation']['depth'].reshape(L, L, 1).repeat(3, axis=2))
-            # # max and min depth of cropped depth
-            # print(np.max(new_info['observation']['depth']), np.min(new_info['observation']['depth']))
-            # plt.imsave('tmp/raw_mask.png', mask.reshape(H, W, 1).repeat(3, axis=2).astype(np.float32))
-            # plt.imsave('tmp/crop_mask.png', new_info['observation']['mask'].reshape(L, L, 1).repeat(3, axis=2).astype(np.float32))
-            # plt.imsave('tmp/raw_workspace_mask.png', workspace_mask.reshape(H, W, 1).repeat(3, axis=2).astype(np.float32))
-            
         return new_infos
     
     def _get_new_info(self, crop_x, crop_y, L, rgb, depth, mask, 
@@ -215,18 +184,74 @@ class WorkspaceSamplerPlaNetClothPick(WorkspaceSampler):
         new_info['observation']['rgb'] = rgb[crop_x:crop_x+L, crop_y:crop_y+L]
         new_info['observation']['depth'] = depth[crop_x:crop_x+L, crop_y:crop_y+L]
         new_info['observation']['workspace_mask'] = workspace_mask[crop_x:crop_x+L, crop_y:crop_y+L]
+        for key in new_info['observation'].keys():
+            print('key:', key, 'shape:', new_info['observation'][key].shape)
+            # Special case for RGB arrays (3 channels)
+            arr = new_info['observation'][key]
+            pad_width = [(self.config.padding, self.config.padding),
+                    (self.config.padding, self.config.padding)]
+            
+            if arr.ndim == 3:
+                pad_width.append((0, 0))
+
+            new_info['observation'][key] = np.pad(
+                arr,
+                pad_width,
+                'constant',
+                constant_values=0)
+            
+            image_to_plot = new_info['observation'][key].copy()
+            if key == 'depth':
+                # squeeze the depth image to 2D
+                image_to_plot = image_to_plot.squeeze()
+            # lot save the images
+            # create tmp directory if not exists
+            plt.imsave(f'tmp/sample_{key}.png', image_to_plot)
+
+        # plt the original image but the cropped image is dimmed
+        rgb_ = rgb.copy()/255.0*0.5
+        cropped_rgb = rgb[crop_x:crop_x+L, crop_y:crop_y+L].copy()/255.0*0.5
+        rgb_[crop_x:crop_x+L, crop_y:crop_y+L] += cropped_rgb
+        plt.imsave('tmp/sample_rgb_overlay.png', (rgb_*255).astype(np.uint8))
+        new_info['observation']['overlay_rgb'] = (rgb_*255).astype(np.uint8)
+        
+        
+
         new_info['crop_x'] = crop_x
         new_info['crop_y'] = crop_y
         new_info['crop_length'] = L
+        new_info['padding'] = self.config.padding
         #print('arena_id:', arena_id)
         new_info['arena_id'] = arena_id
+
         if goal_depth_ is not None:
-            new_info['observation']['goal_depth'] = goal_depth_
+            new_info['observation']['goal-depth'] = np.pad(
+                goal_depth_,
+                ((self.config.padding, self.config.padding),
+                 (self.config.padding, self.config.padding), 
+                 (0, 0)),
+                'constant',
+                constant_values=0)
+            plt.imsave('tmp/sample_goal_depth.png', new_info['observation']['goal-depth'].squeeze())
+
         if goal_mask_ is not None:
-            new_info['observation']['goal_mask'] = goal_mask_
+            new_info['observation']['goal-mask'] = np.pad(
+                goal_mask_,
+                ((self.config.padding, self.config.padding),
+                    (self.config.padding, self.config.padding)),
+                'constant',
+                constant_values=0)
+            plt.imsave('tmp/sample_goal_mask.png', new_info['observation']['goal-mask'].squeeze())
+
         if goal_rgb_ is not None:
-            new_info['observation']['goal_rgb'] = goal_rgb_
-        print('new info', new_info['observation'].keys())
+            new_info['observation']['goal-rgb'] = np.pad(
+                goal_rgb_,
+                ((self.config.padding, self.config.padding),
+                    (self.config.padding, self.config.padding), (0, 0)),
+                'constant',
+                constant_values=0)
+            plt.imsave('tmp/sample_goal_rgb.png', new_info['observation']['goal-rgb'])
+        #print('new info', new_info['observation'].keys())
         return new_info
     
     def get_phase(self):
@@ -238,6 +263,8 @@ class WorkspaceSamplerPlaNetClothPick(WorkspaceSampler):
         crop_x = new_info['crop_x']
         crop_y = new_info['crop_y']
         crop_length = new_info['crop_length']
+        padding = new_info['padding']
+        length = crop_length + 2*padding
         mask = raw_info['observation']['mask'].squeeze()
         H, W = mask.shape
 
@@ -247,8 +274,8 @@ class WorkspaceSamplerPlaNetClothPick(WorkspaceSampler):
         place_0 = action['place_0']
         
         # map the pick and place actions to the original observation
-        pick_0 = (pick_0 + 1)/2*crop_length
-        place_0 = (place_0 + 1)/2*crop_length
+        pick_0 = (pick_0 + 1)/2*length
+        place_0 = (place_0 + 1)/2*length
 
         crop_pnp = draw_pick_and_place(
             new_info['observation']['rgb'], 
@@ -258,26 +285,28 @@ class WorkspaceSamplerPlaNetClothPick(WorkspaceSampler):
         
         pick_0 += np.array([crop_x, crop_y])
         place_0 += np.array([crop_x, crop_y])
+        pick_0 -= padding
+        place_0 -= padding
         # map the place action to the nearest pixel on the workspace mask
         place_0 = self._nearest_pixel(
             place_0, raw_info['observation']['workspace_mask'])
 
         
-        raw_rgb = raw_info['observation']['rgb'].astype(np.float32)/255
+        overlay_rgb = new_info['observation']['overlay_rgb'].astype(np.float32)/255
         workspace = raw_info['observation']['workspace_mask'].astype(np.float32).reshape(H, W, 1)
         alpha = 0.5
         
-        raw_rgb = alpha*raw_rgb + (1-alpha)*workspace
-        raw_rgb = (raw_rgb*255).astype(np.uint8)
+        overlay_rgb = workspace*overlay_rgb + (1 - workspace)*overlay_rgb*alpha
+        overlay_rgb = (overlay_rgb*255).astype(np.uint8)
 
         raw_pnp = draw_pick_and_place(
-            raw_rgb, 
+            overlay_rgb, 
             pick_0, 
             place_0,
             get_ready=True)
         
         plt.imsave('tmp/crop_pnp.png', crop_pnp)
-        plt.imsave('tmp/raw_pnp.png', raw_pnp)
+        plt.imsave('tmp/overlay_pnp.png', raw_pnp)
 
 
         # remap the actions to the original observation in space -1 to 1
