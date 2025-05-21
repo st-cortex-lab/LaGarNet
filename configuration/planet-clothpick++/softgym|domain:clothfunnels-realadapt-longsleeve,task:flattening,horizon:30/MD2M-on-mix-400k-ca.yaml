@@ -1,8 +1,8 @@
 device: 'cuda:0'
 train_mode: 'offline'
 
-output_obs: "mask"
-input_obs: "depth"
+output_obs: "rgb"
+input_obs: "rgb"
 
 deterministic_latent_dim: 200
 stochastic_latent_dim: 30
@@ -12,8 +12,8 @@ embedding_dim: 1024
 min_std_dev: 0.1
 activation: 'relu'
 trans_layers: 1
-input_obs_dim: [1, 64, 64]
-output_obs_dim: [1, 64, 64]
+input_obs_dim: [3, 64, 64]
+output_obs_dim: [3, 64, 64]
 encoder_batchnorm: False
 encoder_residual: False
 decoder_batchnorm: False
@@ -58,13 +58,17 @@ action_output:
 
 
 transform:
-  name: 'pick_and_place_transformer'
+  name: 'pick_and_place_transformer_v1'
   params:
     img_dim: [64, 64]
     remap_image: [0, 1]
     device: "cuda:0"
     random_rotation: True
     random_terminal: False
+    rgb_norm_mode: ['remap']
+    rgb_norm_param:
+      remap_range: [0, 1]
+    rgb_noise_factor: 0.01
     rotation_degree: 1
     vertical_flip: True
     random_resize: False
@@ -81,10 +85,11 @@ transform:
     depth_flip: True
     depth_blur_kernel_size: 5
     depth_noise_var: 0.01
+    rgb_eval_process: True
     maskout: True
     bg_value: 0
 
-
+apply_transform_in_dataset: True
 encoder_mode: "default"
 cost_fn: "trajectory_return"
 
@@ -96,7 +101,10 @@ datasets:
 
     name: 'default'
     params:
-      data_path: 'gc_longsleeve_flattening_offline_rl_mix_400k' #'diffusion_policy_on_softgym|domain:cloth-funnel-real2sim-longsleeve,task:flattening,horizon:20'
+      
+      data_path: 'gc_longsleeve_flattening_offline_rl_mix_200k_compressed' #'diffusion_policy_on_softgym|domain:cloth-funnel-real2sim-longsleeve,task:flattening,horizon:20'
+      data_dir: './data/'
+
       seq_length: 50
       cross_trajectory: True
       split_ratios: [0.01, 0.01, 0.98]
@@ -105,18 +113,18 @@ datasets:
       sample_terminal: True
       obs_config: 
         mask: 
-          shape: [128, 128, 1]
+          shape: [64, 64, 1]
           output_key: 'mask'
-        depth:
-          shape: [128, 128, 1]
-          output_key: 'depth'
+        rgb:
+          shape: [64, 64, 3]
+          output_key: 'rgb'
         # goal_mask: 
-        #   shape: [128, 128, 1]
+        #   shape: [64, 64, 1]
         #   output_key: 'goal-mask'
         # goal_depth:
-        #   shape: [128, 128, 1]
+        #   shape: [64, 64, 1]
         #   output_key: 'goal-depth'
-        coverage_aligment:
+        speedFolding_approx:
           shape: [1]
           output_key: 'reward'
       
@@ -130,7 +138,8 @@ datasets:
 
     name: 'default'
     params:
-      data_path: 'gc_longsleeve_flattening_offline_rl_mix_200k' #'diffusion_policy_on_softgym|domain:cloth-funnel-real2sim-longsleeve,task:flattening,horizon:20'
+      data_path: 'gc_longsleeve_flattening_offline_rl_mix_200k_compressed' #'diffusion_policy_on_softgym|domain:cloth-funnel-real2sim-longsleeve,task:flattening,horizon:20'
+      data_dir: './data/'
       seq_length: 20
       cross_trajectory: False
       io_mode: 'r'
@@ -139,19 +148,19 @@ datasets:
       sample_terminal: True
       obs_config: 
         mask: 
-          shape: [128, 128, 1]
+          shape: [64, 64, 1]
           output_key: 'mask'
-        depth:
-          shape: [128, 128, 1]
-          output_key: 'depth'
-        coverage_aligment:
+        rgb:
+          shape: [64, 64, 3]
+          output_key: 'rgb'
+        speedFolding_approx:
           shape: [1]
           output_key: 'reward'
         # goal_mask: 
-        #   shape: [128, 128, 1]
+        #   shape: [64, 64, 1]
         #   output_key: 'goal-mask'
         # goal_depth:
-        #   shape: [128, 128, 1]
+        #   shape: [64, 64, 1]
         #   output_key: 'goal-depth'
       
       act_config:
