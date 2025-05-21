@@ -145,6 +145,8 @@ def parse_arguments():
 
     parser.add_argument('--goal_conditioned', action='store_true')
 
+    parser.add_argument('--debug', action='store_true')
+
 
 
 
@@ -179,6 +181,7 @@ if __name__ == "__main__":
     
 
     #agent = agar.build_agent(agent_name, config)
+    config.debug = args.debug
     agent = RSSM(config)
     agent.set_eval()
     #logger = ag_ar.build_logger(arena.logger_name, config.save_dir)
@@ -199,6 +202,7 @@ if __name__ == "__main__":
     worspace_sampler_config = DotMap(worspace_sampler_config)
 
     worspace_sampler_config.padding = 110
+    worspace_sampler_config.debug = args.debug
     
 
     workspace_sampler = WorkspaceSamplerPlaNetClothPick(

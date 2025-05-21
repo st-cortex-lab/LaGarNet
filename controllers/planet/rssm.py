@@ -12,6 +12,7 @@ import torch.distributions as td
 from pathlib import Path
 import ruamel.yaml as yaml
 import matplotlib.image as mpimg
+import matplotlib.pyplot as plt
 from torch.distributions.kl import kl_divergence
 from torch.distributions import Normal
 import logging
@@ -289,9 +290,13 @@ class RSSM(TrainableAgent):
         self.cur_state[arena_id]['deter'] = latent_state['deter'][-1]
         self.cur_state[arena_id]['stoch']['sample'] = latent_state['stoch']['sample'][-1]
 
-        ### get the last state for 
-
-
+        ### get the last state for
+        if self.config.debug:
+            if self.config.input_obs == 'gc-rgb':
+                rgb = ts_to_np(image[0, 0, :3, :, :].clip(0, 1)).transpose(1, 2, 0)
+                goal = ts_to_np(image[0, 0, 3:, :, :].clip(0, 1)).transpose(1, 2, 0)
+                plt.imsave(f'tmp/input_obs_rgb.png', rgb) 
+                plt.imsave(f'tmp/input_obs_goal_rgb.png', goal)
 
         self.internal_states[arena_id] = {
             'raw_input_obs': obs_.copy(),
