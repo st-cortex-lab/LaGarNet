@@ -1,4 +1,4 @@
-from planet_clothpick_plus_plus.vidualisations.utils import obs_config, action_config, compress_obs_config, reward_names, plot_results, evaluation_names
+from planet_clothpick_plus_plus.utils import obs_config, action_config, compress_obs_config, reward_names, plot_results, evaluation_names
 from agent_arena.utilities.trajectory_dataset \
     import TrajectoryDataset
 import argparse

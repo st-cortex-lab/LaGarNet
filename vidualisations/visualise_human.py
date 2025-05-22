@@ -3,7 +3,7 @@ import agent_arena.api as ag_ar
 from agent_arena.utilities.perform_single import perform_single
 import os
 import numpy as np
-from planet_clothpick_plus_plus.vidualisations.utils import obs_config, action_config, reward_names, \
+from planet_clothpick_plus_plus.utils import obs_config, action_config, reward_names, \
     plot_results, evaluation_names
 import json
 

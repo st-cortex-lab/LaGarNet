@@ -23,7 +23,7 @@ from agent_arena.utilities.trajectory_dataset \
 from agent_arena.agent.utilities.torch_utils import *
 
 
-from utils import obs_config, compress_obs_config, reward_names, plot_results, evaluation_names
+from planet_clothpick_plus_plus.utils import obs_config, compress_obs_config, reward_names, plot_results, evaluation_names
 from controllers.planet.rssm import RSSM
 
 action_config = {
@@ -146,69 +146,23 @@ def fid_score(x, y):
 
     return score.item()
 
-def main():
-
-    ### Argument Parsing
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--config',  default='RGB2M-on-mix-200k-sf')
-    parser.add_argument('--model_dir', default='/data/planet-clothpick++')
-    parser.add_argument('--verbose', default='silence', type=str)
-    parser.add_argument('--disp', default=0, type=int)
-    parser.add_argument('--eval_checkpoint', default='-1', type=int)
-    parser.add_argument('--object', default='longsleeve', type=str)
-    parser.add_argument('--data_path', type=str, default='gc_longsleeve_flattening_offline_rl_mix_200k_compressed')
-    parser.add_argument('--posterior_horizon', default=3)
-    parser.add_argument('--prior_horizon', default=3)
-    parser.add_argument('--sample_mode', default='eval')
-    parser.add_argument('--recon_format', default='rgb', type=str)
-    parser.add_argument('--trj_nums', type=int, default=1)
-
+def get_recon_results(agent, recon_object, config_name, 
+                      obs_config, act_config,
+                      sample_mode='eval', posterior_horizon=3, prior_horizon=3, recon_format='rgb', trj_nums=10):
+    data_path = f'gc_{recon_object}_flattening_offline_rl_mix_200k_compressed'
     
-    args = parser.parse_args()
-
-    if args.disp == 1:
-        disp = True
-    elif args.disp == 0:
-        disp = False
-    
-    agent_name = "planet-clothpick++"
-    trained_arena = f"softgym|domain:clothfunnels-realadapt-{args.object},task:flattening,horizon:30"
-    
-
-    ## Load agent for latent visuslisation
-    config = ag_ar.retrieve_config(
-        agent_name, 
-        trained_arena, 
-        args.config,
-        config_dir='../configuration')
-
-    agent = RSSM(config)
-    model_dir = os.path.join(args.model_dir, trained_arena, agent_name, args.config)
-    agent.load(model_dir)
-
-    ## Load dataset
-    obs_config = config.datasets[0].params.obs_config.toDict()
-    act_config = config.datasets[0].params.act_config.toDict()
-    print('obs config', obs_config)
-
     dataset = TrajectoryDataset(
-        data_path=args.data_path,
+        data_path=data_path,
         whole_trajectory=True,
         io_mode='r',
-        sample_mode=args.sample_mode,
+        sample_mode=sample_mode,
         obs_config=obs_config,
         act_config=act_config,
         data_dir='../data'
     )
     ground_truths = []
     recon_images = []
-    ### posterior
-    # scores = {
-    #     'mse': [],
-    #     'ssim': [],
-    #     'lpips': [],
-    #     'fid': [],
-    # }
+
 
     metrics = {
         'mse': lambda x, y: mse_score(x, y), # Lower MSE indicates better quality
@@ -218,7 +172,7 @@ def main():
         'kid': lambda x, y: kid_score(x, y), # Lower KID indicates better quality
     }
 
-    for i in range(args.trj_nums):
+    for i in range(trj_nums):
         data = dataset[i]
         #print(data.keys())
         
@@ -237,14 +191,14 @@ def main():
         #print(process_data['input_obs'].shape)     
 
         input_state = init_latent_state
-        input_state['input_obs'] = process_data['input_obs'][1:args.posterior_horizon+1]
+        input_state['input_obs'] = process_data['input_obs'][1:posterior_horizon+1]
 
         # print('\n!!!!! Input')
         # print_information(input_state)
 
         posterior_latent_states, last_post = agent.unroll_state_action(
             input_state,
-            process_data['action'][:args.posterior_horizon]
+            process_data['action'][:posterior_horizon]
         )
 
         # print('\n!!!!! Posterior Output')
@@ -258,7 +212,7 @@ def main():
         ### Get Piror Latent States
         prior_lastent_states = agent.unroll_action(
             last_post,
-            process_data['action'][args.posterior_horizon: args.posterior_horizon + args.prior_horizon]
+            process_data['action'][posterior_horizon: posterior_horizon + prior_horizon]
         )
 
         # print('\n!!!!! Prior Output')
@@ -269,32 +223,32 @@ def main():
         # print('\n!!!!! Prior Recon')
         # print_information(prior_recon_image)
         filename = ''
-        if args.recon_format == 'rgb':
+        if recon_format == 'rgb':
             posterior_recon_image = (posterior_recon_image.clip(0, 1)*255)
         plot_image_trajectory(
             posterior_recon_image[:, 0], 
-            save_path='tmp/recon/trial_{}'.format(i),
+            save_path='tmp/recon/{}/{}/trial_{}'.format(config_name, recon_object, i),
             title='posterior'
         )
 
-        if args.recon_format == 'rgb':
+        if recon_format == 'rgb':
             prior_recon_image = (prior_recon_image.clip(0, 1)*255)
 
         plot_image_trajectory(
             prior_recon_image[:, 0], 
-            save_path='tmp/recon/trial_{}'.format(i),
+            save_path='tmp/recon/{}/{}/trial_{}'.format(config_name, recon_object, i),
             title='prior'
         )
 
-        gt = ts_to_np(process_data['output_obs'][1: args.posterior_horizon + args.prior_horizon + 1])\
+        gt = ts_to_np(process_data['output_obs'][1: posterior_horizon + prior_horizon + 1])\
             .transpose(0, 1, 3, 4, 2)
-        if args.recon_format == 'rgb':
+        if recon_format == 'rgb':
             gt = (gt*255)
         print('gt shape', gt.shape)
 
         plot_image_trajectory(
             gt[:, 0],
-            save_path='tmp/recon/trial_{}'.format(i),
+            save_path='tmp/recon/{}/{}/trial_{}'.format(config_name, recon_object, i),
             title='ground_truth'
         )
 
@@ -305,14 +259,6 @@ def main():
         ground_truths.append(gt)
         recon_images.append(recon_image)
 
-        # for k, v in scores.items():
-        #     scores[k].append([metrics[k](gt[i], recon_image[i]) for i in range(recon_image.shape[0])])
-        ## get the ssmi score 
-
-    # Posterior evaluation
-
-    # for k, v in scores.items():
-    #     scores[k] = np.array(v)
     ground_truths = np.stack(ground_truths)
     recon_images = np.stack(recon_images)
     
@@ -320,23 +266,27 @@ def main():
     gt_scores = {k: m(ground_truths.reshape(-1, 64, 64, 3), ground_truths.reshape(-1, 64, 64, 3))
                 for k, m in metrics.items()}
     print('\n\n')
-    print('Trajectory Number:', args.trj_nums)
-    print('Ground Truth Evaluation on {} steps'.format(args.posterior_horizon + args.prior_horizon))
+    print('Trajectory Number:', trj_nums)
+    print('Ground Truth Evaluation on {} steps'.format(posterior_horizon + prior_horizon))
     for k, v in gt_scores.items():
         print('{}: {:.4f}'.format(k, v))
 
-    posterior_scores = {k: m(ground_truths[:, :args.posterior_horizon, :, :, :3].reshape(-1, 64, 64, 3), recon_images[:, :args.posterior_horizon, :, :, :3].reshape(-1, 64, 64, 3))
+    results = {}
+
+    posterior_scores = {k: m(ground_truths[:, :posterior_horizon, :, :, :3].reshape(-1, 64, 64, 3), recon_images[:, :posterior_horizon, :, :, :3].reshape(-1, 64, 64, 3))
                         for k, m in metrics.items()}
+    
+    results['posterior'] = posterior_scores
 
     print('\n\n')
-    print('Trajectory Number:', args.trj_nums)
-    print('Posterior Evaluation on {} steps'.format(args.posterior_horizon))
+    print('Trajectory Number:', trj_nums)
+    print('Posterior Evaluation on {} steps'.format(posterior_horizon))
     for k, v in posterior_scores.items():
         print('{}: {:.4f}'.format(k, v))
 
-    for i in range(args.prior_horizon):
+    for i in range(prior_horizon):
         prior_scores = {
-            k: m(ground_truths[:, args.posterior_horizon + i, :, :, :3], recon_images[:, args.posterior_horizon + i, :, :, :3])
+            k: m(ground_truths[:, posterior_horizon + i, :, :, :3], recon_images[:, posterior_horizon + i, :, :, :3])
             for k, m in metrics.items()
         }
         print('\n\n')
@@ -345,5 +295,95 @@ def main():
         for k, v in prior_scores.items():
             print('{}: {:.4f}'.format(k, v))
 
+        results['prior_{}'.format(i+1)] = prior_scores
+    
+    return results
+
+def main():
+
+    ### Argument Parsing
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--config',  default='RGB2-on-mix-200k-sf')
+    parser.add_argument('--model_dir', default='/data/planet-clothpick++')
+    parser.add_argument('--verbose', default='silence', type=str)
+    parser.add_argument('--disp', default=0, type=int)
+    parser.add_argument('--eval_checkpoint', default='-1', type=int)
+    parser.add_argument('--arena_object', default='longsleeve', type=str)
+    #parser.add_argument('--recon_object', default='longsleeve', type=str)
+    parser.add_argument('--data_path', type=str, default='gc_longsleeve_flattening_offline_rl_mix_200k_compressed')
+    parser.add_argument('--posterior_horizon', default=3)
+    parser.add_argument('--prior_horizon', default=3)
+    parser.add_argument('--sample_mode', default='eval')
+    parser.add_argument('--recon_format', default='rgb', type=str)
+    parser.add_argument('--trj_nums', type=int, default=10)
+
+    #data_path = f'gc_{args.recon_object}_flattening_offline_rl_mix_200k_compressed'
+
+    
+    args = parser.parse_args()
+
+    if args.disp == 1:
+        disp = True
+    elif args.disp == 0:
+        disp = False
+    
+    agent_name = "planet-clothpick++"
+    trained_arena = f"softgym|domain:clothfunnels-realadapt-{args.arena_object},task:flattening,horizon:30"
+    
+
+    ## Load agent for latent visuslisation
+    config = ag_ar.retrieve_config(
+        agent_name, 
+        trained_arena, 
+        args.config,
+        config_dir='../configuration')
+
+    agent = RSSM(config)
+    model_dir = os.path.join(args.model_dir, trained_arena, agent_name, args.config)
+    agent.load(model_dir)
+
+    ## Load dataset
+    obs_config = config.datasets[0].params.obs_config.toDict()
+    act_config = config.datasets[0].params.act_config.toDict()
+    print('obs config', obs_config)
+
+    result_scores = {}
+
+    for recon_obj in ['longsleeve', 'dress', 'skirt', 'pants']:
+
+        result = get_recon_results(
+            agent, 
+            recon_obj, 
+            args.config,
+            obs_config, 
+            act_config,
+            sample_mode=args.sample_mode,
+            posterior_horizon=args.posterior_horizon,
+            prior_horizon=args.prior_horizon,
+            recon_format=args.recon_format,
+            trj_nums=args.trj_nums
+        )
+        result_scores[recon_obj] = result
+
+        
+        
+    # save the above printing to a csv file named with config name, first columns is posterior or prior, second columns is the object type, and other columns are the metrics
+
+    cvs_file = 'tmp/recon/{}/score.csv'.format(args.config)
+    if not os.path.exists(os.path.dirname('tmp/recon/metrics')):
+        os.makedirs(os.path.dirname('tmp/recon/metrics'))
+
+    with open(cvs_file, 'w') as f:
+        f.write('Posterior/Prior, Object Type, MSE, SSIM, LPIPS, FID, KID\n')
+        for recon_obj in result_scores.keys():
+            for k, v in result_scores[recon_obj].items():
+                if k == 'posterior':
+                    f.write('Posterior, {}, {:.4f}, {:.4f}, {:.4f}, {:.4f}, {:.4f}\n'.format(recon_obj, v['mse'], v['ssim'], v['lpips'], v['fid'], v['kid']))
+                else:
+                    f.write('Prior {}, {}, {:.4f}, {:.4f}, {:.4f}, {:.4f}, {:.4f}\n'.format(k.split('_')[1], recon_obj, v['mse'], v['ssim'], v['lpips'], v['fid'], v['kid']))
+    print('Results saved to {}'.format(cvs_file))
+
+    
+    
 if __name__ == '__main__':
     main()

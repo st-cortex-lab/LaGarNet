@@ -9,9 +9,9 @@ obs_config = {
     'mask': {'shape': (128, 128, 1), 'output_key': 'mask'},
 
     ###############
-    'goal_rgb': {'shape': (128, 128, 3), 'output_key': 'goal-rgb'},
-    'goal_depth': {'shape': (128, 128, 1), 'output_key': 'goal-depth'},
-    'goal_mask': {'shape': (128, 128, 1), 'output_key': 'goal-mask'},
+    'goal-rgb': {'shape': (128, 128, 3), 'output_key': 'goal-rgb'},
+    'goal-depth': {'shape': (128, 128, 1), 'output_key': 'goal-depth'},
+    'goal-mask': {'shape': (128, 128, 1), 'output_key': 'goal-mask'},
 }
 
 obs_config_ = {
