@@ -23,7 +23,7 @@ from agent_arena.agent.oracle.builder import OracleBuilder
 from agent_arena.utilities.visual_utils import plot_pick_and_place_trajectory
 from agent_arena.utilities.utils import TrainWriter
 from agent_arena.utilities.transform.register import DATA_TRANSFORMER
-from agent_arena import TrainableAgent
+from agent_arena import RLAgent
 from agent_arena.utilities.logger.logger_interface import Logger
 
 from .networks import ImageEncoder, ImageDecoder
@@ -34,7 +34,7 @@ from .cost_functions import *
 from .model import *
 
 
-class RSSM(TrainableAgent):
+class RSSM(RLAgent):
 
     def __init__(self, config):
         self.config = config
@@ -125,6 +125,7 @@ class RSSM(TrainableAgent):
         self.internal_states = {}
         self.logger = Logger()
         self.cur_state = {}
+        self.apply_reward_processor = self.config.get('apply_reward_processor', False)
 
     def set_log_dir(self, logdir):
         super().set_log_dir(logdir)
@@ -172,6 +173,9 @@ class RSSM(TrainableAgent):
 
     def get_name(self):
         return "RSSM PlaNet"
+    
+    # def set_reward_processor(self, reward_processing):
+    #     self.rewad_processing = reward_processing
     
     def train(self, update_steps, arena) -> bool:
         torch.backends.cudnn.benchmark = True
@@ -481,25 +485,34 @@ class RSSM(TrainableAgent):
 
     def _preprocess(self, data, train=False, single=False, apply_transform=True):
 
+        
+
         if self.config.datasets[0].name == 'default':
             if 'observation' in data:
                 obs_data = data['observation']
                 act_data = data['action']['default']
+                if self.apply_reward_processor:
+                    rewards = self.reward_processor(data['observation']['reward'], obs_data, act_data)
             else:
                 obs_data = data
                 act_data = data['action']
+                if self.apply_reward_processor:
+                    rewards = self.reward_processor(data['reward'], obs_data, act_data)
             
-            if single:
-                obs_data['reward'] = obs_data['reward'][1:].squeeze(-1)
-                obs_data['terminal'] = obs_data['terminal'][1:].squeeze(-1)
-            else:
-                obs_data['reward'] = obs_data['reward'][:, 1:].squeeze(-1)
-                obs_data['terminal'] = obs_data['terminal'][:, 1:].squeeze(-1)
+           
            
             data = {
                 'action': act_data,
             }
             data.update(obs_data)
+            
+            if single:
+                data['reward'] = rewards[1:].squeeze(-1)
+                data['terminal'] = data['terminal'][1:].squeeze(-1)
+            else:
+                data['reward'] = rewards[:, 1:].squeeze(-1)
+                data['terminal'] = data['terminal'][:, 1:].squeeze(-1)
+        
         
 
         
@@ -783,6 +796,8 @@ class RSSM(TrainableAgent):
             data = next(iter(train_dataloader))
 
             data = {k: v.to(self.config.device, non_blocking=True) for k,v in data.items()}
+            # for k, v in data.items():
+            #     print(k, v.shape)
 
             data = self._preprocess(data, train=True, apply_transform=(not self.apply_transform_in_dataset))
             data['input_obs'] = data['input_obs'][:-1]

@@ -1,7 +1,9 @@
 import os
 import matplotlib.pyplot as plt
-from agent_arena.utilities.visual_utils import plot_pick_and_place_trajectory as pt
-from agent_arena.utilities.visual_utils import plot_image_trajectory
+from agent_arena.utilities.visual_utils \
+    import plot_pick_and_place_trajectory as pt
+from agent_arena.utilities.visual_utils \
+    import plot_image_trajectory
 
 obs_config = {
     'rgb': {'shape': (128, 128, 3), 'output_key': 'rgb'},
@@ -35,7 +37,8 @@ compress_obs_config = {
 }
 
 action_config = {
-    'norm-pixel-pick-and-place': {'shape': (2, 2), 'output_key': 'norm-pixel-pick-and-place'},
+    'norm-pixel-pick-and-place': \
+    {'shape': (2, 2), 'output_key': 'norm-pixel-pick-and-place'},
 }
 
 reward_names = [
