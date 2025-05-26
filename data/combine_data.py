@@ -19,15 +19,17 @@ def main():
 
     data_path = [
         'gc_longsleeve_flattening_offline_rl_diffusion_200k_compressed',
+        'gc_longsleeve_flattening_offline_rl_diffusion_100k_compressed_extra',
         'gc_longsleeve_flattening_offline_rl_mask_biased_200k_compressed',
     ]
 
     need_trj_nums = [
         10000,
         5000,
+        5000,
     ]
 
-    target_datadir = f'gc_{args.obj}_flattening_offline_rl_mix_300k_2ratio1'
+    target_datadir = f'gc_{args.obj}_flattening_offline_rl_mix_400k_3ratio1_compressed'
 
     if args.obj == 'mono-fabric':
         data_path = [

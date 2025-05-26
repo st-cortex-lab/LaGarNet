@@ -42,16 +42,9 @@ class RSSM(RLAgent):
         
         self.no_op = np.asarray(config.no_op).flatten()
         self.model = dict()
-        self.model['transition_model'] = TransitionModel(
-            belief_size=self.config.deterministic_latent_dim,
-            state_size=self.config.stochastic_latent_dim,
-            action_size = np.prod(np.array(self.config.action_dim)), 
-            hidden_size=self.config.hidden_dim,
-            embedding_size=self.config.embedding_dim,
-            activation_function=self.config.activation,
-            min_std_dev=self.config.min_std_dev,
-            embedding_layers=self.config.trans_layers
-        ).to(self.config.device)
+        self.init_transition_model()
+        
+        
 
         self.model['observation_model'] = ImageDecoder(
             image_dim=config.output_obs_dim,
@@ -126,6 +119,18 @@ class RSSM(RLAgent):
         self.logger = Logger()
         self.cur_state = {}
         self.apply_reward_processor = self.config.get('apply_reward_processor', False)
+
+    def init_transition_model(self):
+        self.model['transition_model'] = TransitionModel(
+            belief_size=self.config.deterministic_latent_dim,
+            state_size=self.config.stochastic_latent_dim,
+            action_size = np.prod(np.array(self.config.action_dim)), 
+            hidden_size=self.config.hidden_dim,
+            embedding_size=self.config.embedding_dim,
+            activation_function=self.config.activation,
+            min_std_dev=self.config.min_std_dev,
+            embedding_layers=self.config.trans_layers
+        ).to(self.config.device)
 
     def set_log_dir(self, logdir):
         super().set_log_dir(logdir)
@@ -800,8 +805,7 @@ class RSSM(RLAgent):
             #     print(k, v.shape)
 
             data = self._preprocess(data, train=True, apply_transform=(not self.apply_transform_in_dataset))
-            data['input_obs'] = data['input_obs'][:-1]
-            data['output_obs'] = data['output_obs'][:-1]
+            
 
             
 
@@ -883,26 +887,37 @@ class RSSM(RLAgent):
         for i in tqdm(range(self.config.eval_episodes)):
             episode = dataset.get_trajectory(i)
 
+            #print('\n!!!!!!!!!!!!!!!!')
             episode = self._preprocess(episode, train=False, single=True, apply_transform=True)
-            for k, v in episode.items():
-                episode[k] = torch.swapaxes(v, 0, 1).squeeze(0)
+            #for k, v in episode.items():
+                #episode[k] = torch.swapaxes(v, 0, 1) #.squeeze(0)
+            #print('episode input obs shape', episode['input_obs'].shape)
+            #print(k, episode[k].shape)
+            no_op_action = np_to_ts(self.no_op, self.config.device).unsqueeze(0).unsqueeze(0)
+            #print('no_op_action shape', no_op_action.shape)
+            episode['actions'] = torch.cat([no_op_action,
+                 episode['action'][:eval_action_horizon]], dim=0)
 
-            init_belief = torch.zeros(1, self.config.deterministic_latent_dim).to(self.config.device)
-            init_state = torch.zeros(1, self.config.stochastic_latent_dim).to(self.config.device)
+            beliefs, posteriors, priors, obs_embedding = self._unroll_state_action(
+                episode, horizon=eval_action_horizon, batch_size=1)
 
-            no_op_ts = np_to_ts(self.no_op, self.config.device).unsqueeze(0)
+            # init_belief = torch.zeros(1, self.config.deterministic_latent_dim).to(self.config.device)
+            # init_state = torch.zeros(1, self.config.stochastic_latent_dim).to(self.config.device)
+
+            # no_op_ts = np_to_ts(self.no_op, self.config.device).unsqueeze(0)
             actions = episode['action'][:eval_action_horizon]
 
-            actions = torch.cat([no_op_ts, actions])
+            # actions = torch.cat([no_op_ts, actions])
             
-            input_obs = episode['input_obs'][:eval_action_horizon+1]
+            # input_obs = episode['input_obs'][:eval_action_horizon+1]
             output_obs = episode['output_obs'][:eval_action_horizon+1]
 
             rewards = episode['reward'][:eval_action_horizon]
 
-            beliefs, posteriors, priors, obs_embedding = self._unroll_state_action(
-                input_obs.unsqueeze(1), actions.unsqueeze(1), init_belief, init_state, 
-                None, project_obs=True)
+            # beliefs, posteriors, priors, obs_embedding = self._unroll_state_action(
+            #     episode, horizon=eval_action_horizon, batch_size=1)
+                # input_obs.unsqueeze(1), actions.unsqueeze(1), init_belief, init_state, 
+                # None)
             
             if ('eval_save_latent' in self.config) and self.config.eval_save_latent and (not train):
                 data = {
@@ -957,76 +972,77 @@ class RSSM(RLAgent):
                         reduction='none').mean((1, 2, 3)).flatten().detach().cpu().tolist())
 
             
-            # T*30
-            for horizon in self.config.test_horizons:
-                horizon_actions = [actions[j + 2: j+horizon+2] for j in range(eval_action_horizon-horizon-1)]
-                horizon_actions = torch.swapaxes(torch.stack(horizon_actions), 0, 1)
+        #     # T*30
+        #     for horizon in self.config.test_horizons:
+        #         print('horizon', horizon)
+        #         horizon_actions = [actions[j + 2: j+horizon+2] for j in range(eval_action_horizon-horizon-1)]
+        #         horizon_actions = torch.swapaxes(torch.stack(horizon_actions), 0, 1)
                 
-                B = horizon_actions.shape[1]
-                init_post = posteriors['sample'][1:B+1].squeeze(1)
+        #         B = horizon_actions.shape[1]
+        #         init_post = posteriors['sample'][1:B+1].squeeze(1)
 
-                imagin_beliefs, imagin_priors = self._unroll_action(
-                    horizon_actions, 
-                    beliefs[1:B+1].squeeze(1), init_post) # horizon*B
-
-                
-                imagin_reward =  bottle(self.model['reward_model'], 
-                                        (imagin_beliefs, imagin_priors['sample'])).transpose(0, 1)
-                imagin_observation = bottle(self.model['observation_model'], 
-                                            (imagin_beliefs, imagin_priors['sample'])).transpose(0, 1)
-                
-                true_reward = torch.stack(
-                    [episode['reward'][j+1: j+horizon+1] for j in range(eval_action_horizon-horizon-1)])\
-                        .reshape(-1, horizon)
-                true_image = torch.stack(
-                    [output_obs[j+2: j+horizon+2] for j in range(eval_action_horizon-horizon-1)])
-
-
-                reward_rmses[horizon].extend((F.mse_loss(
-                        symexp(imagin_reward, self.symlog), 
-                        symexp(true_reward, self.symlog),
-                        reduction='none')**0.5).flatten().detach().cpu().tolist())
-                
-                observation_mses[horizon].extend(F.mse_loss(
-                        symexp(imagin_observation, self.symlog) , 
-                        symexp(true_image, self.symlog),
-                        reduction='none').mean((2, 3, 4)).flatten().detach().cpu().tolist())
-                
-                imagin_post = {k: torch.stack([posteriors[k][j+2:j+2+horizon, 0] \
-                                               for j in range(eval_action_horizon-horizon-1)]) 
-                                               for k in posteriors.keys()}
-
-
-                imagin_post_dist = ContDist(td.independent.Independent(
-                td.normal.Normal(imagin_post['mean'].transpose(0, 1), imagin_post['std'].transpose(0, 1)), 1))._dist
-                
-                
-                
-                imagin_prior_dist = ContDist(td.independent.Independent(
-                td.normal.Normal(imagin_priors['mean'], imagin_priors['std']), 1))._dist
-                
-                
-
-                kls_post_to_prior[horizon].extend(
-                    td.kl.kl_divergence(imagin_post_dist, imagin_prior_dist)\
-                        .flatten().detach().cpu().tolist())
-                kls_prior_to_post[horizon].extend(
-                    td.kl.kl_divergence(imagin_prior_dist, imagin_post_dist)\
-                        .flatten().detach().cpu().tolist())
+        #         imagin_beliefs, imagin_priors = self._unroll_action(
+        #             horizon_actions, 
+        #             beliefs[1:B+1].squeeze(1), init_post) # horizon*B
 
                 
+        #         imagin_reward =  bottle(self.model['reward_model'], 
+        #                                 (imagin_beliefs, imagin_priors['sample'])).transpose(0, 1)
+        #         imagin_observation = bottle(self.model['observation_model'], 
+        #                                     (imagin_beliefs, imagin_priors['sample'])).transpose(0, 1)
+                
+        #         true_reward = torch.stack(
+        #             [episode['reward'][j+1: j+horizon+1] for j in range(eval_action_horizon-horizon-1)])\
+        #                 .reshape(-1, horizon)
+        #         true_image = torch.stack(
+        #             [output_obs[j+2: j+horizon+2] for j in range(eval_action_horizon-horizon-1)])
 
-                prior_entropies[horizon].extend(
-                    imagin_prior_dist.entropy().mean(dim=-1)\
-                        .flatten().detach().cpu().tolist())
+
+        #         reward_rmses[horizon].extend((F.mse_loss(
+        #                 symexp(imagin_reward, self.symlog), 
+        #                 symexp(true_reward, self.symlog),
+        #                 reduction='none')**0.5).flatten().detach().cpu().tolist())
+                
+        #         observation_mses[horizon].extend(F.mse_loss(
+        #                 symexp(imagin_observation, self.symlog) , 
+        #                 symexp(true_image, self.symlog),
+        #                 reduction='none').mean((2, 3, 4)).flatten().detach().cpu().tolist())
+                
+        #         imagin_post = {k: torch.stack([posteriors[k][j+2:j+2+horizon, 0] \
+        #                                        for j in range(eval_action_horizon-horizon-1)]) 
+        #                                        for k in posteriors.keys()}
+
+
+        #         imagin_post_dist = ContDist(td.independent.Independent(
+        #         td.normal.Normal(imagin_post['mean'].transpose(0, 1), imagin_post['std'].transpose(0, 1)), 1))._dist
+                
+                
+                
+        #         imagin_prior_dist = ContDist(td.independent.Independent(
+        #         td.normal.Normal(imagin_priors['mean'], imagin_priors['std']), 1))._dist
+                
+                
+
+        #         kls_post_to_prior[horizon].extend(
+        #             td.kl.kl_divergence(imagin_post_dist, imagin_prior_dist)\
+        #                 .flatten().detach().cpu().tolist())
+        #         kls_prior_to_post[horizon].extend(
+        #             td.kl.kl_divergence(imagin_prior_dist, imagin_post_dist)\
+        #                 .flatten().detach().cpu().tolist())
+
+                
+
+        #         prior_entropies[horizon].extend(
+        #             imagin_prior_dist.entropy().mean(dim=-1)\
+        #                 .flatten().detach().cpu().tolist())
                 
         
-        results = {
-            'img_prior_reward_rmse': {h:reward_rmses[h] for h in self.config.test_horizons},
-            'img_prior_img_observation_mse': {h:observation_mses[h] for h in self.config.test_horizons},
-            'kl_divergence_between_posterior_and_img_prior': {h:kls_post_to_prior[h] for h in self.config.test_horizons},
-            'img_prior_entropy':  {h:prior_entropies[h] for h in self.config.test_horizons}
-        }
+        # results = {
+        #     'img_prior_reward_rmse': {h:reward_rmses[h] for h in self.config.test_horizons},
+        #     'img_prior_img_observation_mse': {h:observation_mses[h] for h in self.config.test_horizons},
+        #     'kl_divergence_between_posterior_and_img_prior': {h:kls_post_to_prior[h] for h in self.config.test_horizons},
+        #     'img_prior_entropy':  {h:prior_entropies[h] for h in self.config.test_horizons}
+        # }
 
         res = {
             'posterior_img_observation_mse_mean': np.mean(posterior_recon_mses),
@@ -1037,126 +1053,126 @@ class RSSM(RLAgent):
             'posterior_entropy_std': np.std(posterior_entropies)
         }
         
-        for k, v in results.items():
-            for h in self.config.test_horizons:
-                res['{}_horizon_{}_mean'.format(k, h)] = np.mean(v[h])
-                res['{}_horizon_{}_std'.format(k, h)] = np.std(v[h])
+        # for k, v in results.items():
+        #     for h in self.config.test_horizons:
+        #         res['{}_horizon_{}_mean'.format(k, h)] = np.mean(v[h])
+        #         res['{}_horizon_{}_std'.format(k, h)] = np.std(v[h])
         
 
         return res
     
-    def visualise(self, datasets):
-        self._visualise(datasets['train'], train=True)
-        self._visualise(datasets['test'], train=False)
+    # def visualise(self, datasets):
+    #     self._visualise(datasets['train'], train=True)
+    #     self._visualise(datasets['test'], train=False)
 
-    def _visualise(self, dataset, train=False):
-        train_str = 'Train' if train else 'Eval'
+    # def _visualise(self, dataset, train=False):
+    #     train_str = 'Train' if train else 'Eval'
         
-        for e in range(5):
-            org_gt = dataset.get_episode(e)
-            input_obs = self.config.input_obs
-            if self.config.input_obs == 'rgbd':
-                input_obs = 'rgb'
-            # org_gt = dataset.transform.post_transform(data)
+    #     for e in range(5):
+    #         org_gt = dataset.get_episode(e)
+    #         input_obs = self.config.input_obs
+    #         if self.config.input_obs == 'rgbd':
+    #             input_obs = 'rgb'
+    #         # org_gt = dataset.transform.post_transform(data)
 
-            plot_pick_and_place_trajectory(
-                org_gt[input_obs][6:16].transpose(0, 2 ,3, 1),
-                org_gt['action'][6:16],
-                title='{} Ground Truth Episode {}'.format(train_str, e),
-                # rewards=data['reward'][5:15], 
-                save_png = True, 
-                save_path=os.path.join(self.save_dir, 'visualisations'))
+    #         plot_pick_and_place_trajectory(
+    #             org_gt[input_obs][6:16].transpose(0, 2 ,3, 1),
+    #             org_gt['action'][6:16],
+    #             title='{} Ground Truth Episode {}'.format(train_str, e),
+    #             # rewards=data['reward'][5:15], 
+    #             save_png = True, 
+    #             save_path=os.path.join(self.save_dir, 'visualisations'))
             
-            data = {}
-            for k, v in org_gt.items():
-                data[k] = np.expand_dims(v, 0)
-            data = self._preprocess(data, train=False, apply_transform=True)
-            for k, v in data.items():
-                data[k] = torch.swapaxes(v, 0, 1).squeeze(0)
+    #         data = {}
+    #         for k, v in org_gt.items():
+    #             data[k] = np.expand_dims(v, 0)
+    #         data = self._preprocess(data, train=False, apply_transform=True)
+    #         for k, v in data.items():
+    #             data[k] = torch.swapaxes(v, 0, 1).squeeze(0)
 
-            recon_image = []
+    #         recon_image = []
 
-            init_belief = torch.zeros(1, self.config.deterministic_latent_dim).to(self.config.device)
-            init_state = torch.zeros(1, self.config.stochastic_latent_dim).to(self.config.device)
+    #         init_belief = torch.zeros(1, self.config.deterministic_latent_dim).to(self.config.device)
+    #         init_state = torch.zeros(1, self.config.stochastic_latent_dim).to(self.config.device)
 
 
-            no_op_ts = np_to_ts(self.no_op, self.config.device).unsqueeze(0)
-            actions = np_to_ts(data['action'], self.config.device)
-            actions = torch.cat([no_op_ts, actions])
+    #         no_op_ts = np_to_ts(self.no_op, self.config.device).unsqueeze(0)
+    #         actions = np_to_ts(data['action'], self.config.device)
+    #         actions = torch.cat([no_op_ts, actions])
 
-            observations = np_to_ts(data['input_obs'], self.config.device)
-            rewards = np_to_ts(data['reward'], self.config.device)
+    #         observations = np_to_ts(data['input_obs'], self.config.device)
+    #         rewards = np_to_ts(data['reward'], self.config.device)
 
-            beliefs, posteriors, priors, _ = self._unroll_state_action(
-                observations.unsqueeze(1), actions.unsqueeze(1), 
-                init_belief, init_state, None)
+    #         beliefs, posteriors, priors, _ = self._unroll_state_action(
+    #             observations.unsqueeze(1), actions.unsqueeze(1), 
+    #             init_belief, init_state, None)
 
-            posterior_observations = bottle(self.model['observation_model'], (beliefs, posteriors['sample'])).squeeze(1)
-            posterior_observations = symexp(posterior_observations, self.symlog)
-            if self.config.output_obs == 'input_obs':
-                post_process_obs = self.transform.post_transform({self.config.input_obs: posterior_observations})[self.config.input_obs]
-            else:
-                # post_process_obs = posterior_observations.detach().cpu().numpy()
-                post_process_obs = self.transform.post_transform({self.config.output_obs: posterior_observations})[self.config.output_obs]
+    #         posterior_observations = bottle(self.model['observation_model'], (beliefs, posteriors['sample'])).squeeze(1)
+    #         posterior_observations = symexp(posterior_observations, self.symlog)
+    #         if self.config.output_obs == 'input_obs':
+    #             post_process_obs = self.transform.post_transform({self.config.input_obs: posterior_observations})[self.config.input_obs]
+    #         else:
+    #             # post_process_obs = posterior_observations.detach().cpu().numpy()
+    #             post_process_obs = self.transform.post_transform({self.config.output_obs: posterior_observations})[self.config.output_obs]
 
             
             
-            posterior_rewards = bottle(self.model['reward_model'], (beliefs, posteriors['sample'])).squeeze(1)
-            posterior_rewards = symexp(posterior_rewards, self.symlog)
-            posterior_rewards = posterior_rewards.detach().cpu().numpy()
+    #         posterior_rewards = bottle(self.model['reward_model'], (beliefs, posteriors['sample'])).squeeze(1)
+    #         posterior_rewards = symexp(posterior_rewards, self.symlog)
+    #         posterior_rewards = posterior_rewards.detach().cpu().numpy()
 
            
 
-            plot_pick_and_place_trajectory(
-                post_process_obs[6:16].transpose(0, 2 ,3, 1),
-                # rewards=posterior_rewards[6:16], 
-                title='{} Posterior Trajectory Episode {}'.format(train_str, e), 
-                save_png = True,
-                save_path=os.path.join(self.save_dir, 'visualisations'))
+    #         plot_pick_and_place_trajectory(
+    #             post_process_obs[6:16].transpose(0, 2 ,3, 1),
+    #             # rewards=posterior_rewards[6:16], 
+    #             title='{} Posterior Trajectory Episode {}'.format(train_str, e), 
+    #             save_png = True,
+    #             save_path=os.path.join(self.save_dir, 'visualisations'))
             
-            recon_image.append(post_process_obs[6:11].transpose(0, 2 ,3, 1))
+    #         recon_image.append(post_process_obs[6:11].transpose(0, 2 ,3, 1))
 
             
-            # T*30
-            horizon = 5
-            horizon_actions = [actions[j + 1: j+horizon+1] for j in range(dataset.eval_action_horizon-horizon)]
-            horizon_actions = torch.swapaxes(torch.stack(horizon_actions), 0, 1) # 4*64*1 
+    #         # T*30
+    #         horizon = 5
+    #         horizon_actions = [actions[j + 1: j+horizon+1] for j in range(dataset.eval_action_horizon-horizon)]
+    #         horizon_actions = torch.swapaxes(torch.stack(horizon_actions), 0, 1) # 4*64*1 
 
-            B = horizon_actions.shape[1]
+    #         B = horizon_actions.shape[1]
 
-            imagin_beliefs, imagin_priors = self._unroll_action(
-                horizon_actions, 
-                beliefs[:B].squeeze(1), posteriors['sample'][:B].squeeze(1)) # horizon*B
+    #         imagin_beliefs, imagin_priors = self._unroll_action(
+    #             horizon_actions, 
+    #             beliefs[:B].squeeze(1), posteriors['sample'][:B].squeeze(1)) # horizon*B
             
-            prior_observations = bottle(self.model['observation_model'], (imagin_beliefs, imagin_priors['sample']))
-            prior_observations = symexp(prior_observations, self.symlog)
+    #         prior_observations = bottle(self.model['observation_model'], (imagin_beliefs, imagin_priors['sample']))
+    #         prior_observations = symexp(prior_observations, self.symlog)
 
-            prior_rewards = bottle(self.model['reward_model'], (imagin_beliefs, imagin_priors['sample'])) 
-            prior_rewards = symexp(prior_rewards, self.symlog)
-            prior_rewards = prior_rewards.detach().cpu().numpy()
+    #         prior_rewards = bottle(self.model['reward_model'], (imagin_beliefs, imagin_priors['sample'])) 
+    #         prior_rewards = symexp(prior_rewards, self.symlog)
+    #         prior_rewards = prior_rewards.detach().cpu().numpy()
 
 
-            for i in range(horizon):
-                if self.config.output_obs == 'input_obs':
-                    post_process_img_obs = self.transform.post_transform({self.config.input_obs: prior_observations[i]})[self.config.input_obs]
-                else:
-                    post_process_img_obs = self.transform.post_transform({self.config.output_obs: prior_observations[i]})[self.config.output_obs]
+    #         for i in range(horizon):
+    #             if self.config.output_obs == 'input_obs':
+    #                 post_process_img_obs = self.transform.post_transform({self.config.input_obs: prior_observations[i]})[self.config.input_obs]
+    #             else:
+    #                 post_process_img_obs = self.transform.post_transform({self.config.output_obs: prior_observations[i]})[self.config.output_obs]
 
-                plot_pick_and_place_trajectory(
-                    post_process_img_obs[5-i:15-i].transpose(0, 2 ,3, 1),
-                    # rewards=prior_rewards[i][5-i:15-i], 
-                    title='{}-Step {} Prior Trajectory Episode {}'.format(i, train_str, e), 
-                    save_png = True,
-                    save_path=os.path.join(self.save_dir, 'visualisations'))
-                recon_image.append(post_process_img_obs[5+5:6+5].transpose(0, 2 ,3, 1))
+    #             plot_pick_and_place_trajectory(
+    #                 post_process_img_obs[5-i:15-i].transpose(0, 2 ,3, 1),
+    #                 # rewards=prior_rewards[i][5-i:15-i], 
+    #                 title='{}-Step {} Prior Trajectory Episode {}'.format(i, train_str, e), 
+    #                 save_png = True,
+    #                 save_path=os.path.join(self.save_dir, 'visualisations'))
+    #             recon_image.append(post_process_img_obs[5+5:6+5].transpose(0, 2 ,3, 1))
 
-            recon_image = np.concatenate(recon_image, axis=0)
-            plot_pick_and_place_trajectory(
-                    recon_image,
-                    # rewards=posterior_rewards[6:16], 
-                    title='{} Recon Trajectory Episode {}'.format(train_str, e), 
-                    save_png = True,
-                    save_path=os.path.join(self.save_dir, 'visualisations'))
+    #         recon_image = np.concatenate(recon_image, axis=0)
+    #         plot_pick_and_place_trajectory(
+    #                 recon_image,
+    #                 # rewards=posterior_rewards[6:16], 
+    #                 title='{} Recon Trajectory Episode {}'.format(train_str, e), 
+    #                 save_png = True,
+    #                 save_path=os.path.join(self.save_dir, 'visualisations'))
     
 
     def _unroll_state_action(self, obs, acts, blf, lst, 
@@ -1350,6 +1366,11 @@ class RSSM(RLAgent):
         return kl_overshooting_loss, reward_overshooting_loss
 
     def compute_kl_loss(self, post, prior, balance=0.8, forward=False, free=1.0):
+        ## print shapes of post and prior
+        # print('post mean shape', post['mean'].shape)
+        # print('prior mean shape', prior['mean'].shape)
+        # print('post std shape', post['std'].shape)
+        # print('prior std shape', prior['std'].shape)
 
         if self.config.kl_balancing:
             kld = td.kl.kl_divergence
@@ -1389,28 +1410,32 @@ class RSSM(RLAgent):
     def compute_losses(self, data, steps):
         
         # Create initial belief and state for time t = 0
-        init_belief = torch.zeros(
-            self.config.batch_size, 
-            self.config.deterministic_latent_dim).to(self.config.device)
+        # init_belief = torch.zeros(
+        #     self.config.batch_size, 
+        #     self.config.deterministic_latent_dim).to(self.config.device)
 
-        init_state = torch.zeros(
-            self.config.batch_size, 
-            self.config.stochastic_latent_dim).to(self.config.device)
+        # init_state = torch.zeros(
+        #     self.config.batch_size, 
+        #     self.config.stochastic_latent_dim).to(self.config.device)
+        
+        data['input_obs'] = data['input_obs'][1:]
+        #data['output_obs'] = data['output_obs'][:-1]
 
         
 
         # Update belief/state using posterior from previous belief/state, previous action and current observation (over entire sequence at once)
 
-        actions = data['action']
-        non_terminals = 1 - data['terminal']
+        #actions = data['action']
+        #non_terminals = 1 - data['terminal']
         rewards = data['reward']
-        input_obs = data['input_obs']
-        output_obs = data['output_obs']
+        #input_obs = data['input_obs']
+        #goal_obs = data['goal_obs']
+        output_obs = data['output_obs'][:-1]
 
 
-        beliefs, posteriors, priors, _ = self._unroll_state_action(
-            input_obs[1:], actions[:-1], 
-            init_belief, init_state, non_terminals[:-1].unsqueeze(-1))
+        beliefs, posteriors, priors, _ = self._unroll_state_action(data)
+            # input_obs[1:], goal_obs[:-1], actions[:-1], 
+            # init_belief, init_state, non_terminals[:-1].unsqueeze(-1))
         
 
         # Calculate observation likelihood, reward likelihood and KL losses (for t = 0 only for latent overshooting); 
