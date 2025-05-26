@@ -39,6 +39,8 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
+from agent_arena.agent.utilities.torch_utils import *
+
 from .planet.rssm import RSSM
 from .planet.model import bottle, symlog
 
@@ -147,8 +149,111 @@ class GC_RSSM(RSSM):
             embedding_layers=self.config.trans_layers
         ).to(self.config.device)
     
+    # def _update_helper(self, info, action, reset_internal=False):
+    #     pass
+
     def _update_helper(self, info, action, reset_internal=False):
-        pass
+        arena_id = info['arena_id']
+        obs = info['observation']
+        mask = obs['mask']
+        self.no_op = self.no_op.flatten()
+        obs_ = obs[self.config.input_obs]
+        goal_obs_ = obs[f'goal-{self.config.input_obs}']
+        goal_mask = obs['goal-mask']
+
+
+        # if self.config.input_obs == 'gc-depth':
+        #     obs_ = np.concatenate([obs['depth'], obs['goal_depth']], axis=-1)
+        #     goal_mask = obs['goal_mask']
+        # elif self.config.input_obs == 'gc-rgb':
+        #     obs_ = np.concatenate([obs['rgb'], obs['goal-rgb']], axis=-1)
+        #     goal_mask = obs['goal-mask']
+        # elif self.config.input_obs == 'gc-rgbd':
+        #     obs_ = np.concatenate([obs['rgb'], obs['depth'], obs['goal_rgb'], obs['goal_depth']], axis=-1)
+        #     goal_mask = obs['goal_mask']
+        # elif self.config.input_obs == 'rgbd':
+        #     obs_ = np.concatenate([obs['rgb'], obs['depth']], axis=-1)
+        # else:
+        #     obs_ = info['observation'][self.config.input_obs]
+
+        if len(mask.shape) == 2:
+            mask = np.expand_dims(mask, axis=0)
+        
+        if len(goal_mask.shape) == 2:
+            goal_mask = np.expand_dims(goal_mask, axis=0)
+
+        
+        to_trans_dict = {
+            self.config.input_obs: np.expand_dims(obs_, axis=(0)),
+            f'goal-{self.config.input_obs}': np.expand_dims(goal_obs_, axis=(0)),
+            'mask': np.expand_dims(mask, axis=(0)),
+            'goal-mask': np.expand_dims(goal_mask, axis=(0)),
+        }
+        # if self.config.input_obs in ['gc-depth', 'gc-rgb', 'gc-rgbd']:
+        #     if len(goal_mask.shape) == 2:
+        #         goal_mask = np.expand_dims(goal_mask, axis=0)
+        #     to_trans_dict['goal-mask'] = np.expand_dims(goal_mask, axis=(0))
+            
+
+        res = self.transform(
+            to_trans_dict, 
+            train=False)
+        image = res[self.config.input_obs].to(self.config.device)
+        goal_image = res[f'goal-{self.config.input_obs}'].to(self.config.device)
+       
+        
+        image = symlog(image, self.symlog)
+        if len(image.shape) == 4:
+            image = image.unsqueeze(0)
+        goal_image = symlog(goal_image, self.symlog)
+        if len(goal_image.shape) == 4:
+            goal_image = goal_image.unsqueeze(0)
+
+        
+        if reset_internal:
+            self.cur_state[arena_id] = {
+                'deter': torch.zeros(
+                    1, self.config.deterministic_latent_dim, 
+                    device=self.config.device),
+                'stoch': {
+                    'sample': torch.zeros(
+                        1, self.config.stochastic_latent_dim, 
+                        device=self.config.device)
+                },
+                'goal_obs': goal_image, # batch*horizon*C*H*W
+                'input_obs': image # batch*horizon*C*H*W
+            }
+        else:
+            self.cur_state[arena_id]['input_obs'] = image
+        
+    
+        action = np_to_ts(action.flatten(), self.config.device).unsqueeze(0).unsqueeze(0)
+
+        latent_state,  _ = self.unroll_state_action(self.cur_state[arena_id] , action)
+        self.cur_state[arena_id]['deter'] = latent_state['deter'][-1]
+        self.cur_state[arena_id]['stoch']['sample'] = latent_state['stoch']['sample'][-1]
+        self.cur_state[arena_id]['goal_obs'] = goal_image
+
+        ### get the last state for
+        # if self.config.debug:
+        #     if self.config.input_obs == 'gc-rgb':
+        #         rgb = ts_to_np(image[0, 0, :3, :, :].clip(0, 1)).transpose(1, 2, 0)
+        #         goal = ts_to_np(image[0, 0, 3:, :, :].clip(0, 1)).transpose(1, 2, 0)
+        #         plt.imsave(f'tmp/input_obs_rgb.png', rgb) 
+        #         plt.imsave(f'tmp/input_obs_goal_rgb.png', goal)
+
+        self.internal_states[arena_id] = {
+            'raw_input_obs': obs_.copy(),
+            'input_obs': image.squeeze(0).squeeze(0) \
+                .cpu().detach().numpy().transpose(1, 2, 0),
+            'deter_state': self.cur_state[arena_id]['deter']\
+                .squeeze(1).cpu().detach().numpy(),
+            'stoch_state': self.cur_state[arena_id]['stoch']['sample']\
+                .squeeze(1).cpu().detach().numpy(),
+            'latent_state': self.cur_state[arena_id],
+            'input_type': self.config.input_obs,
+        }
+
 
     def _unroll_action(self, actions, belief_, latent_state_, goal_obs):
 
@@ -223,6 +328,13 @@ class GC_RSSM(RSSM):
     
     def unroll_state_action(self, state, action):
 
+        ## print all the shapes
+        # print('action shape:', action.shape)
+        # print('state stoch sample shape:', state['stoch']['sample'].shape)
+        # print('state deter shape:', state['deter'].shape)
+        # print('state input obs shape:', state['input_obs'].shape)
+        # print('state goal obs shape:', state['goal_obs'].shape)
+
 
         blfs, prior_states_, prior_means_, prior_std_devs_, posterior_states_, posterior_means_, posterior_std_devs_ = \
             self.model['transition_model'](
@@ -274,10 +386,19 @@ class GC_RSSM(RSSM):
 
         action = np_to_ts(action, self.config.device).permute(1, 0, 2) ## horizon*candidates*actions
 
-        return self.unroll_action(to_unroll, action, state_['goal_obs'])
+        return self.unroll_action(to_unroll, action, state['goal_obs'])
 
     def unroll_action(self, init_state, actions, goal_obs):
-        goal_emb = self.model['encoder'](goal_obs)
+        goal_emb = self.model['encoder'](goal_obs) # in shape 1 * 1 * 10124
+        # action in shape 1 * batch * action_dim
+
+        # make the first two dimensions of goal_emb and actions the same
+        goal_emb = goal_emb.expand(actions.shape[0], actions.shape[1], -1)
+        # print('goal_emb', goal_emb[0, :2, :5])
+        
+        # print('goal_emb shape:', goal_emb.shape)
+        # print('actions shape:', actions.shape)
+
         img_beliefs_, prior_states_, prior_means_, prior_std_devs_  = \
             self.model['transition_model'](
                 init_state['stoch']['sample'], 
@@ -285,7 +406,7 @@ class GC_RSSM(RSSM):
                 init_state['deter'], 
                 goal_emb,
                 None,
-                    None)
+                None)
         
         return {
             'deter': img_beliefs_,
@@ -452,7 +573,4 @@ class GC_RSSM(RSSM):
         
         data['reward'] = symlog(data['reward'], self.symlog)
 
-        return data
-    
-
-    
+        return datas
