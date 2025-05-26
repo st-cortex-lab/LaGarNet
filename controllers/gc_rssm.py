@@ -56,10 +56,10 @@ class GoalConditionedTransitionModel(nn.Module):
         self.rnn = nn.GRUCell(belief_size, belief_size)
         
         self.fc_embed_state_action = self.make_layers(state_size+action_size, belief_size, hidden_size, embedding_layers)
-        self.fc_embed_belief_prior = self.make_layers(belief_size, hidden_size, hidden_size, embedding_layers)
-        self.fc_state_prior = self.make_layers(hidden_size + embedding_size, 2 * state_size, hidden_size, embedding_layers)
-        self.fc_embed_belief_posterior = self.make_layers(belief_size + embedding_size, hidden_size, hidden_size, embedding_layers)
-        self.fc_state_posterior = self.make_layers(hidden_size + embedding_size, 2 * state_size, hidden_size, embedding_layers)
+        self.fc_embed_belief_prior = self.make_layers(belief_size+embedding_size, hidden_size, hidden_size, embedding_layers)
+        self.fc_state_prior = self.make_layers(hidden_size, 2 * state_size, hidden_size, embedding_layers)
+        self.fc_embed_belief_posterior = self.make_layers(belief_size + embedding_size*2, hidden_size, hidden_size, embedding_layers)
+        self.fc_state_posterior = self.make_layers(hidden_size, 2 * state_size, hidden_size, embedding_layers)
 
     def make_layers(self, input_dim, output_dim, hidden_dim, num_layers):
 
@@ -106,24 +106,20 @@ class GoalConditionedTransitionModel(nn.Module):
             hidden = self.act_fn(self.fc_embed_state_action(torch.cat([_state, actions[t]], dim=1)))
             beliefs[t + 1] = self.rnn(hidden, beliefs[t])
             # Compute state prior by applying transition dynamics
-            hidden = self.act_fn(self.fc_embed_belief_prior(beliefs[t + 1]))
+            hidden = self.act_fn(self.fc_embed_belief_prior(torch.cat([beliefs[t + 1], goal_observations[t]], dim=1)))
             #print('hidden shape:', hidden.shape)
             #print('goal_observations shape:', goal_observations[t+1].shape)
-            prior_means[t + 1], _prior_std_dev = torch.chunk(
-                self.fc_state_prior(torch.cat([hidden, goal_observations[t]], dim=1)),
-                2, 
-                dim=1)
+            prior_means[t + 1], _prior_std_dev = torch.chunk(self.fc_state_prior(hidden), 2, dim=1)
             prior_std_devs[t + 1] = F.softplus(_prior_std_dev) + self.min_std_dev
             prior_states[t + 1] = prior_means[t + 1] + prior_std_devs[t + 1] * torch.randn_like(prior_means[t + 1])     
             if observations is not None:
                 # Compute state posterior by applying transition dynamics and using current observation
                 t_ = t - 1  # Use t_ to deal with different time indexing for observations
-                hidden = self.act_fn(self.fc_embed_belief_posterior(torch.cat([beliefs[t + 1], observations[t_ + 1]], dim=1)))
-                posterior_means[t + 1], _posterior_std_dev = torch.chunk(
-                    self.fc_state_posterior(
-                        torch.cat([hidden, goal_observations[t_+1]], dim=1)), 
-                        2, 
-                        dim=1)
+                hidden = self.act_fn(
+                    self.fc_embed_belief_posterior(
+                        torch.cat([beliefs[t + 1], goal_observations[t_+1], observations[t_ + 1]], dim=1)))
+                posterior_means[t + 1], _posterior_std_dev = torch.chunk(self.fc_state_posterior(hidden), 2, dim=1)
+                
                 posterior_std_devs[t + 1] = F.softplus(_posterior_std_dev) + self.min_std_dev
                 posterior_states[t + 1] = posterior_means[t + 1] + posterior_std_devs[t + 1] * torch.randn_like(posterior_means[t + 1])
         # Return new hidden states
@@ -573,4 +569,4 @@ class GC_RSSM(RSSM):
         
         data['reward'] = symlog(data['reward'], self.symlog)
 
-        return datas
+        return data
