@@ -3,9 +3,10 @@ import agent_arena.api as ag_ar
 from agent_arena.utilities.perform_single import perform_single
 import os
 import numpy as np
-from planet_clothpick_plus_plus.utils import obs_config, action_config, reward_names, \
+from utils import obs_config, action_config, reward_names, \
     plot_results, evaluation_names
 import json
+import matplotlib.pyplot as plt
 
 
 def main():
@@ -23,14 +24,18 @@ def main():
     parser.add_argument('--verbose', default='silence', type=str)
     parser.add_argument('--disp', default=0, type=int)
     parser.add_argument('--eval_checkpoint', default='-1', type=int)
+    parser.add_argument('--eid', default=0, type=int)
+    parser.add_argument('--obj', default='longsleeve', type=str)
     
     ## add arguments --load_saved as boolean for load the saved data 
     parser.add_argument('--load_saved', action='store_true')
     args = parser.parse_args()
 
     if not args.load_saved:
+
+        horizon = 1
    
-        arena_name = 'softgym|domain:clothfunnels-real2sim-longsleeve,task:flattening,horizon:14'
+        arena_name = f'softgym|domain:clothfunnels-realadapt-{args.obj},task:flattening,horizon:{horizon}'
         agent_name = 'human-pixel-pick-and-place-1'
 
 
@@ -40,11 +45,18 @@ def main():
         #logger = ag_ar.build_logger(arena.logger_name, config.save_dir)
 
         ## get the episode config where arena is in success state
-        episode_config = None
+        episode_config = {
+            'eid': args.eid,
+            'save_video': False,
+        }
         res = perform_single(arena, agent, mode='eval', 
             episode_config=episode_config, collect_frames=False, end_success=False)
         
-        infos = res['informations']
+        ## save goal-rgb
+        goal_rgb = res['information'][0]['observation']['goal-rgb']
+        plt.imsave('tmp/goal_rgb.png', goal_rgb)
+        
+        infos = res['information']
         rewards = [info['reward'] for info in infos]
         rgbs = [info['observation']['rgb'] for info in infos]
         depths = [info['observation']['depth'] for info in infos]
@@ -91,8 +103,8 @@ def main():
     # Visualize the rewards
     plot_results(
         rgbs, depths, masks,
-        actions, rewad_dict, evaluation_dict, 
-        filename='human')
+        actions=actions, reward_dict=rewad_dict, evaluation_dict=evaluation_dict, 
+        filename='human', sequence=horizon)
 
     # save these data
     save_dir = 'human_tmp_data'

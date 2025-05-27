@@ -505,6 +505,7 @@ class RSSM(RLAgent):
                 'action': act_data,
             }
             data.update(obs_data)
+            rewards = data['reward']
             
             if single:
                 data['reward'] = rewards[1:].squeeze(-1)
