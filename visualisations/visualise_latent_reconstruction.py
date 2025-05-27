@@ -23,7 +23,7 @@ from agent_arena.utilities.trajectory_dataset \
 from agent_arena.agent.utilities.torch_utils import *
 
 
-from planet_clothpick_plus_plus.utils import obs_config, compress_obs_config, reward_names, plot_results, evaluation_names
+from utils import obs_config, compress_obs_config, reward_names, plot_results, evaluation_names
 from controllers.planet.rssm import RSSM
 
 action_config = {
@@ -147,8 +147,9 @@ def fid_score(x, y):
     return score.item()
 
 def get_recon_results(agent, recon_object, config_name, 
-                      obs_config, act_config,
-                      sample_mode='eval', posterior_horizon=3, prior_horizon=3, recon_format='rgb', trj_nums=10):
+                      obs_config, act_config, world_model,
+                      sample_mode='eval', posterior_horizon=3, prior_horizon=3, 
+                      recon_format='rgb', trj_nums=10):
     data_path = f'gc_{recon_object}_flattening_offline_rl_mix_200k_compressed'
     
     dataset = TrajectoryDataset(
@@ -158,7 +159,7 @@ def get_recon_results(agent, recon_object, config_name,
         sample_mode=sample_mode,
         obs_config=obs_config,
         act_config=act_config,
-        data_dir='../data'
+        data_dir='../data/datasets'
     )
     ground_truths = []
     recon_images = []
@@ -192,6 +193,8 @@ def get_recon_results(agent, recon_object, config_name,
 
         input_state = init_latent_state
         input_state['input_obs'] = process_data['input_obs'][1:posterior_horizon+1]
+        if world_model == 'gc_rssm':
+            input_state['goal_obs'] = process_data['goal_obs'][1:posterior_horizon+1]
 
         # print('\n!!!!! Input')
         # print_information(input_state)
@@ -210,10 +213,19 @@ def get_recon_results(agent, recon_object, config_name,
         # print_information(posterior_recon_image) # T, B, C, H, W
 
         ### Get Piror Latent States
-        prior_lastent_states = agent.unroll_action(
-            last_post,
-            process_data['action'][posterior_horizon: posterior_horizon + prior_horizon]
-        )
+        if world_model == 'gc_rssm':
+            prior_lastent_states = agent.unroll_action(
+                last_post,
+                process_data['action'][posterior_horizon: posterior_horizon + prior_horizon],
+                goal_obs=process_data['goal_obs'][posterior_horizon: posterior_horizon + prior_horizon]
+            )
+        elif world_model == 'rssm':
+            prior_lastent_states = agent.unroll_action(
+                last_post,
+                process_data['action'][posterior_horizon: posterior_horizon + prior_horizon]
+            )
+        else:
+            raise ValueError(f"Unknown world model: {world_model}")
 
         # print('\n!!!!! Prior Output')
         # print_information(prior_lastent_states)
@@ -227,7 +239,7 @@ def get_recon_results(agent, recon_object, config_name,
             posterior_recon_image = (posterior_recon_image.clip(0, 1)*255)
         plot_image_trajectory(
             posterior_recon_image[:, 0], 
-            save_path='tmp/recon/{}/{}/trial_{}'.format(config_name, recon_object, i),
+            save_path='tmp/recon/{}/{}/{}/trial_{}'.format(world_model, config_name, recon_object, i),
             title='posterior'
         )
 
@@ -236,7 +248,7 @@ def get_recon_results(agent, recon_object, config_name,
 
         plot_image_trajectory(
             prior_recon_image[:, 0], 
-            save_path='tmp/recon/{}/{}/trial_{}'.format(config_name, recon_object, i),
+            save_path='tmp/recon/{}/{}/{}/trial_{}'.format(world_model, config_name, recon_object, i),
             title='prior'
         )
 
@@ -248,7 +260,7 @@ def get_recon_results(agent, recon_object, config_name,
 
         plot_image_trajectory(
             gt[:, 0],
-            save_path='tmp/recon/{}/{}/trial_{}'.format(config_name, recon_object, i),
+            save_path='tmp/recon/{}/{}/{}/trial_{}'.format(world_model, config_name, recon_object, i),
             title='ground_truth'
         )
 
@@ -303,12 +315,13 @@ def main():
 
     ### Argument Parsing
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config',  default='RGB2-on-mix-200k-sf')
-    parser.add_argument('--model_dir', default='/data/planet-clothpick++')
+    parser.add_argument('--config',  default='RGB2RGB-on-mix-200k-sf')
+    parser.add_argument('--model_dir', default='../test_results/models', type=str)
     parser.add_argument('--verbose', default='silence', type=str)
     parser.add_argument('--disp', default=0, type=int)
     parser.add_argument('--eval_checkpoint', default='-1', type=int)
     parser.add_argument('--arena_object', default='longsleeve', type=str)
+    parser.add_argument('--wm', default='rssm', type=str)
     #parser.add_argument('--recon_object', default='longsleeve', type=str)
     parser.add_argument('--data_path', type=str, default='gc_longsleeve_flattening_offline_rl_mix_200k_compressed')
     parser.add_argument('--posterior_horizon', default=3)
@@ -327,19 +340,26 @@ def main():
     elif args.disp == 0:
         disp = False
     
-    agent_name = "planet-clothpick++"
     trained_arena = f"softgym|domain:clothfunnels-realadapt-{args.arena_object},task:flattening,horizon:30"
     
 
     ## Load agent for latent visuslisation
     config = ag_ar.retrieve_config(
-        agent_name, 
+        args.wm, 
         trained_arena, 
         args.config,
         config_dir='../configuration')
 
-    agent = RSSM(config)
-    model_dir = os.path.join(args.model_dir, trained_arena, agent_name, args.config)
+    if args.wm == 'rssm':
+        agent = RSSM(config)
+    elif args.wm == 'gc_rssm':
+        from controllers.gc_rssm import GC_RSSM
+        agent = GC_RSSM(config)
+    else:
+        raise ValueError(f"Unknown world model: {args.wm}")
+    
+    
+    model_dir = os.path.join(args.model_dir, args.wm, trained_arena, args.config)
     agent.load(model_dir)
 
     ## Load dataset
@@ -357,6 +377,7 @@ def main():
             args.config,
             obs_config, 
             act_config,
+            args.wm,
             sample_mode=args.sample_mode,
             posterior_horizon=args.posterior_horizon,
             prior_horizon=args.prior_horizon,
@@ -369,9 +390,9 @@ def main():
         
     # save the above printing to a csv file named with config name, first columns is posterior or prior, second columns is the object type, and other columns are the metrics
 
-    cvs_file = 'tmp/recon/{}/score.csv'.format(args.config)
-    if not os.path.exists(os.path.dirname('tmp/recon/metrics')):
-        os.makedirs(os.path.dirname('tmp/recon/metrics'))
+    cvs_file = 'tmp/recon/{}/{}/score.csv'.format(args.wm, args.config)
+    # if not os.path.exists(os.path.dirname('tmp/recon/metrics')):
+    #     os.makedirs(os.path.dirname('tmp/recon/metrics'))
 
     with open(cvs_file, 'w') as f:
         f.write('Posterior/Prior, Object Type, MSE, SSIM, LPIPS, FID, KID\n')
