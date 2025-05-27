@@ -1,7 +1,7 @@
-import os
-## add the parent directory to the system path
-import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# import os
+# ## add the parent directory to the system path
+# import sys
+# sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from utils import obs_config, obs_config_, compress_obs_config, action_config, reward_names, plot_results, evaluation_names
 from agent_arena.utilities.trajectory_dataset \
@@ -18,12 +18,15 @@ def main():
     args = parser.parse_args()
 
     data_path = [
+        'gc_longsleeve_flattening_offline_rl_diffusion_100k_extra_compressed',
         'gc_longsleeve_flattening_offline_rl_diffusion_200k_compressed',
         'gc_longsleeve_flattening_offline_rl_diffusion_100k_compressed_extra',
         'gc_longsleeve_flattening_offline_rl_mask_biased_200k_compressed',
+
     ]
 
     need_trj_nums = [
+        5000,
         10000,
         5000,
         5000,
@@ -31,17 +34,6 @@ def main():
 
     target_datadir = f'gc_{args.obj}_flattening_offline_rl_mix_400k_3ratio1_compressed'
 
-    if args.obj == 'mono-fabric':
-        data_path = [
-            'gc_msf_flattening_diffusion_50k',
-            'gc_msf_flattening_masked_bias_50k',
-            
-            # 'gc_mono_fabric_flattening_offline_rl_mix_200k'
-        ]
-
-        target_datadir = 'gc_msf_flattening_offline_rl_mix_100k'
-
-   
 
     datasets = []
     for path in data_path:

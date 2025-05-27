@@ -1,4 +1,8 @@
-from planet_clothpick_plus_plus.utils import obs_config, compress_obs_config, \
+import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from utils import obs_config, compress_obs_config, \
     action_config, reward_names, obs_config_, plot_results, evaluation_names
 from agent_arena.utilities.trajectory_dataset \
     import TrajectoryDataset
@@ -46,6 +50,7 @@ def main():
    
     dataset = TrajectoryDataset(
         data_path=args.data_path,
+        data_dir='./datasets',
         whole_trajectory=True,
         io_mode='r',
         obs_config=obs_config, #obs_config_,
@@ -54,6 +59,7 @@ def main():
 
     target_dataset = TrajectoryDataset(
         data_path=target_datadir,
+        data_dir='./datasets',
         whole_trajectory=True,
         io_mode='w',
         obs_config=compress_obs_config,

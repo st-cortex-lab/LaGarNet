@@ -167,10 +167,10 @@ def plot_results(
         col = len(rgbs)
         x = range(0, col)
         reward_to_plot = ['clothfunnel_default', 'learningToUnfold_approx', 
-                        'planet_clothpick_hueristic', 
+                        'planet_clothpick_hueristic', 'speedFolding_approx',
                         'coverage_aligment']
         labels = ['ClothFunnels', 'Learning2Unfold', 
-                'PlaNet-ClothPick',   
+                'PlaNet-ClothPick', 'SpeedFolding (Approx)',
                 'Coverage-Alignment (ours)']
         for key, values in reward_dict.items():
             if key not in reward_to_plot:
@@ -182,6 +182,7 @@ def plot_results(
         # ax_reward.set_ylabel('Reward')
         # ax_reward.set_title('Rewards')
         ax_reward.legend(fontsize=font_size, ncol=2, loc='lower center')
+        ax_reward.set_ylim(-1.0, 1.0)
         ax_reward.grid(True)
         ax_reward.set_xticks(x)
         ## set font size for x-y ticks as well as the legend

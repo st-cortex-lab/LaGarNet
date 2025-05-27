@@ -5,7 +5,11 @@ import os
 import agent_arena as ag_ar
 
 from controllers.planet.rssm import RSSM
+<<<<<<< HEAD
 from controllers.gc_rssm import GC_RSSM
+=======
+# from controllers.gc_rssm import GC_RSSM
+>>>>>>> 785039d64e24b7e6fdee245bb1305074a997552f
 
 def parse_arguments():
     """Parse command-line arguments."""
