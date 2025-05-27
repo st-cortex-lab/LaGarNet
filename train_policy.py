@@ -6,11 +6,7 @@ import torch
 
 import agent_arena as ag_ar
 from controllers.planet.rssm import RSSM
-<<<<<<< HEAD
 from controllers.gc_rssm import GC_RSSM
-=======
-# from controllers.gc_rssm import GC_RSSM
->>>>>>> 785039d64e24b7e6fdee245bb1305074a997552f
 
 
 def reward_bonus_and_penalty(rewards, observations, actions):
@@ -68,13 +64,8 @@ def main():
     arena = ag_ar.build_arena(f"{trained_arena},disp:{disp}")
     if args.wm == 'rssm':
         agent = RSSM(config)
-<<<<<<< HEAD
     elif args.wm == 'gc_rssm':
         agent = GC_RSSM(config)
-=======
-    # elif args.wm == 'gc_rssm':
-    #     agent = GC_RSSM(config)
->>>>>>> 785039d64e24b7e6fdee245bb1305074a997552f
     else:
         raise ValueError(f"Unknown world model: {args.wm}")
     

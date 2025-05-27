@@ -38,6 +38,7 @@ from typing import Optional, List
 import torch
 from torch import nn
 from torch.nn import functional as F
+import matplotlib.pyplot as plt
 
 from agent_arena.agent.utilities.torch_utils import *
 
@@ -221,6 +222,7 @@ class GC_RSSM(RSSM):
             }
         else:
             self.cur_state[arena_id]['input_obs'] = image
+            self.cur_state[arena_id]['goal_obs'] = goal_image
         
     
         action = np_to_ts(action.flatten(), self.config.device).unsqueeze(0).unsqueeze(0)
@@ -228,15 +230,15 @@ class GC_RSSM(RSSM):
         latent_state,  _ = self.unroll_state_action(self.cur_state[arena_id] , action)
         self.cur_state[arena_id]['deter'] = latent_state['deter'][-1]
         self.cur_state[arena_id]['stoch']['sample'] = latent_state['stoch']['sample'][-1]
-        self.cur_state[arena_id]['goal_obs'] = goal_image
+        
 
-        ### get the last state for
-        # if self.config.debug:
-        #     if self.config.input_obs == 'gc-rgb':
-        #         rgb = ts_to_np(image[0, 0, :3, :, :].clip(0, 1)).transpose(1, 2, 0)
-        #         goal = ts_to_np(image[0, 0, 3:, :, :].clip(0, 1)).transpose(1, 2, 0)
-        #         plt.imsave(f'tmp/input_obs_rgb.png', rgb) 
-        #         plt.imsave(f'tmp/input_obs_goal_rgb.png', goal)
+        ## get the last state for
+        if self.config.debug:
+            if self.config.input_obs == 'rgb':
+                rgb = ts_to_np(image[0, 0, :3, :, :].clip(0, 1)).transpose(1, 2, 0)
+                goal = ts_to_np(goal_image[0, 0, :3, :, :].clip(0, 1)).transpose(1, 2, 0)
+                plt.imsave(f'tmp/input_obs_rgb.png', rgb) 
+                plt.imsave(f'tmp/input_obs_goal_rgb.png', goal)
 
         self.internal_states[arena_id] = {
             'raw_input_obs': obs_.copy(),
@@ -337,8 +339,8 @@ class GC_RSSM(RSSM):
                 state['stoch']['sample'],
                 action, 
                 state['deter'], 
-                self.model['encoder'](state['input_obs']), 
                 self.model['encoder'](state['goal_obs']),
+                self.model['encoder'](state['input_obs']),
                 None)
 
         posteriors_ = {
