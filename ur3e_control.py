@@ -3,6 +3,8 @@
 import os
 import traceback
 import yaml
+import json
+import cv2
 
 import rclpy
 
@@ -19,16 +21,20 @@ from matplotlib import cm
 from agent_arena.utilities.visual_utils import \
     draw_pick_and_place, plot_image_trajectory
 
-def visualise_action_inference(internal_states):
+def visualise_action_inference(internal_states, save_dir=None):
 
     print('internal_states', internal_states[0].keys())
 
     interation_means = [its['iteration_means'] for its in internal_states] # T * I * 1 * 4
     interation_means = np.stack(interation_means, axis=0)
     print('iteration_means', interation_means.shape)
-    input_obs = [its['raw_input_obs'] for its in internal_states]
-    input_obs = np.stack(input_obs, axis=0)[:, :, :, :3]
+    input_obs = [its['input_obs'] for its in internal_states]
+    input_obs = (np.stack(input_obs, axis=0)[:, :, :, :3].clip(0, 1) * 255).astype(np.uint8)
     print('input_obs', input_obs.shape)
+
+    estimated_rewards = [its['estimated_reward'] for its in internal_states] # T * I
+    estimated_rewards = np.stack(estimated_rewards, axis=0)
+    print('estimated_rewards', estimated_rewards)
 
     # for each T in interation_means, choose 10 samples evenly from the second dimension including the first and last samples   
     T, I, _, _ = interation_means.shape
@@ -45,6 +51,8 @@ def visualise_action_inference(internal_states):
     # end_color = np.array([139, 0, 0])
     for i in range(T):
         img = input_obs[i]
+        ## resize image to 256 by 256
+        img = cv2.resize(img, (256, 256), interpolation=cv2.INTER_LINEAR)
         #img = (input_obs[i] * 255).clip(0, 255).astype(np.uint8)
         H, W, C = img.shape
         for j in range(S):
@@ -59,7 +67,10 @@ def visualise_action_inference(internal_states):
                 img, pick, place, get_ready=True, color=color)
         draw_action_img.append(img)
     
-    plot_image_trajectory(draw_action_img, save_path='tmp/visualise_inference', title='iteration')
+    plot_image_trajectory(
+        draw_action_img, 
+        save_path=f'{save_dir}/visualise_inference', 
+        title='iteration')
 
 
     
@@ -98,6 +109,7 @@ def visualise_action_inference(internal_states):
     draw_action_img = []
     for i in range(T):
         img = input_obs[i]
+        img = cv2.resize(img, (256, 256), interpolation=cv2.INTER_LINEAR)
         H, W, C = img.shape
         for j in range(len(chosen_samples_list[i])):
             pick = (chosen_samples_list[i][j, :2] + 1)/2 * np.asarray([H, W])
@@ -112,13 +124,23 @@ def visualise_action_inference(internal_states):
                 img, pick, place, get_ready=True, color=color)
         draw_action_img.append(img)
     
-    plot_image_trajectory(draw_action_img, save_path='tmp/visualise_inference', title='last_step_reward')
+    plot_image_trajectory(draw_action_img, 
+                          save_path=f'{save_dir}/visualise_inference', 
+                          title='last_step_reward')
 
     pick_masks = [its['pick-mask'] for its in internal_states]
     place_masks = [its['place-mask'] for its in internal_states]
 
-    plot_image_trajectory(pick_masks, save_path='tmp/visualise_inference', title='pick_masks')
-    plot_image_trajectory(place_masks, save_path='tmp/visualise_inference', title='place_masks')
+    plot_image_trajectory(pick_masks, save_path=f'{save_dir}/visualise_inference', title='pick_masks')
+    plot_image_trajectory(place_masks, save_path=f'{save_dir}/visualise_inference', title='place_masks')
+
+    # save estimated rewards in human-readable format
+    estimated_rewards = np.array(estimated_rewards)
+    json_data = {
+        'estimated_rewards': estimated_rewards.tolist(),
+    }
+    with open(f'{save_dir}/info.json', 'w') as f:
+        json.dump(json_data, f, indent=4)
 
 
 def parse_arguments():
@@ -158,7 +180,7 @@ if __name__ == "__main__":
 
     max_steps = 20
 
-    agent_name = "planet-clothpick++"
+    agent_name = "rssm"
     trained_arena = f"softgym|domain:clothfunnels-realadapt-{args.object},task:flattening,horizon:30"
     # capitalise the first letter of object
     capitalised_obj = args.object[0].upper() + args.object[1:]
