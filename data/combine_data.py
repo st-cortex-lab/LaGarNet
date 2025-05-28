@@ -20,7 +20,6 @@ def main():
     data_path = [
         'gc_longsleeve_flattening_offline_rl_diffusion_100k_extra_compressed',
         'gc_longsleeve_flattening_offline_rl_diffusion_200k_compressed',
-        'gc_longsleeve_flattening_offline_rl_diffusion_100k_compressed_extra',
         'gc_longsleeve_flattening_offline_rl_mask_biased_200k_compressed',
 
     ]
@@ -28,7 +27,6 @@ def main():
     need_trj_nums = [
         5000,
         10000,
-        5000,
         5000,
     ]
 

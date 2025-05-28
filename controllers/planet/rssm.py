@@ -1176,21 +1176,34 @@ class RSSM(RLAgent):
     #                 save_path=os.path.join(self.save_dir, 'visualisations'))
     
 
-    def _unroll_state_action(self, obs, acts, blf, lst, 
-                             non_terminals, project_obs=False):
+    def _unroll_state_action(self, data, horizon=-1, batch_size=None):
         
-        obs_emb = {}
-        obs_emb['emb'] = self.model['encoder'](obs)
 
-        if self.config.encoder_mode == 'contrastive' and project_obs:
-            obs_proj = self.model['encoder'].project(obs)
-            obs_emb['proj'] = obs_proj
+        init_belief = torch.zeros(
+            self.config.batch_size if batch_size is None else batch_size,
+            self.config.deterministic_latent_dim).to(self.config.device)
+
+        init_state = torch.zeros(
+            self.config.batch_size if batch_size is None else batch_size,
+            self.config.stochastic_latent_dim).to(self.config.device)
+        
+        actions = data['action'][:horizon]
+        non_terminals = (1 - data['terminal'])[:horizon].unsqueeze(-1)
+        #rewards = data['reward']
+        input_obs = data['input_obs'][:horizon]
+        # goal_obs = data['goal_obs'][:horizon]
+        #output_obs = data['output_obs']
+
+
+        obs_emb = {}
+        obs_emb['emb'] = self.model['encoder'](input_obs)
+        #obs_emb['goal-emb'] = self.model['encoder'](goal_obs)
 
         blfs, prior_states_, prior_means_, prior_std_devs_, posterior_states_, posterior_means_, posterior_std_devs_ = \
             self.model['transition_model'](
-                lst, 
-                acts, 
-                blf, 
+                init_state, 
+                actions,
+                init_belief,
                 obs_emb['emb'], 
                 non_terminals)
 
