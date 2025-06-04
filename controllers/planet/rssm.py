@@ -260,7 +260,7 @@ class RSSM(RLAgent):
         
         to_trans_dict = {
             self.config.input_obs: np.expand_dims(obs_, axis=(0)),
-            'mask': np.expand_dims(mask, axis=(0))
+            'mask': np.expand_dims(mask, axis=(0)),
         }
         if self.config.input_obs in ['gc-depth', 'gc-rgb', 'gc-rgbd']:
             if len(goal_mask.shape) == 2:

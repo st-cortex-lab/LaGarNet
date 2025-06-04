@@ -177,20 +177,6 @@ class GC_RSSM(RSSM):
         goal_mask = obs['goal-mask']
 
 
-        # if self.config.input_obs == 'gc-depth':
-        #     obs_ = np.concatenate([obs['depth'], obs['goal_depth']], axis=-1)
-        #     goal_mask = obs['goal_mask']
-        # elif self.config.input_obs == 'gc-rgb':
-        #     obs_ = np.concatenate([obs['rgb'], obs['goal-rgb']], axis=-1)
-        #     goal_mask = obs['goal-mask']
-        # elif self.config.input_obs == 'gc-rgbd':
-        #     obs_ = np.concatenate([obs['rgb'], obs['depth'], obs['goal_rgb'], obs['goal_depth']], axis=-1)
-        #     goal_mask = obs['goal_mask']
-        # elif self.config.input_obs == 'rgbd':
-        #     obs_ = np.concatenate([obs['rgb'], obs['depth']], axis=-1)
-        # else:
-        #     obs_ = info['observation'][self.config.input_obs]
-
         if len(mask.shape) == 2:
             mask = np.expand_dims(mask, axis=0)
         
@@ -268,6 +254,9 @@ class GC_RSSM(RSSM):
                 .squeeze(1).cpu().detach().numpy(),
             'latent_state': self.cur_state[arena_id],
             'input_type': self.config.input_obs,
+            'estimated_reward': self.model['reward_model'](self.cur_state[arena_id]['deter'], self.cur_state[arena_id]['stoch']['sample'])
+                .squeeze(0).cpu().detach().item(),
+            'recon_obs': self.model['observation_model'](self.cur_state[arena_id]['deter'], self.cur_state[arena_id]['stoch']['sample']).cpu().detach()
         }
 
 

@@ -1,5 +1,5 @@
 # This script should be run under the conda envrionment of `ros2-humbel` branch of `agent-arena`
-
+# python ur3e_control.py --agent_config RGB2M-on-mix-800k-all-garment-bonus-penalty-v2 --wm gc_rssm --goal_conditioned
 import os
 import traceback
 import yaml
@@ -20,6 +20,7 @@ from controllers.planet.rssm import RSSM
 from matplotlib import cm
 from agent_arena.utilities.visual_utils import \
     draw_pick_and_place, plot_image_trajectory
+from controllers.gc_rssm import GC_RSSM
 
 def visualise_action_inference(internal_states, save_dir=None):
 
@@ -31,6 +32,15 @@ def visualise_action_inference(internal_states, save_dir=None):
     input_obs = [its['input_obs'] for its in internal_states]
     input_obs = (np.stack(input_obs, axis=0)[:, :, :, :3].clip(0, 1) * 255).astype(np.uint8)
     print('input_obs', input_obs.shape)
+
+    recon_obs = [its['recon_obs'] for its in internal_states]
+    recon_obs = (np.stack(input_obs, axis=0)[:, :, :, :3].clip(0, 1) * 255).astype(np.uint8)
+    print('recon_obs', recon_obs.shape)
+    if recon_obs.shape[-1] == 1:
+        recon_obs = np.repeat(recon_obs, 3, axis=-1)
+        print(f'Converted grayscale to RGB: {recon_obs.shape}')
+
+
 
     estimated_rewards = [its['estimated_reward'] for its in internal_states] # T * I
     estimated_rewards = np.stack(estimated_rewards, axis=0)
@@ -72,9 +82,6 @@ def visualise_action_inference(internal_states, save_dir=None):
         save_path=f'{save_dir}/visualise_inference', 
         title='iteration')
 
-
-    
-
     last_steps_costs = [its['last_costs'] for its in internal_states]
     last_steps_samples = [its['last_samples'] for its in internal_states]
     chosen_samples_list = []
@@ -108,7 +115,7 @@ def visualise_action_inference(internal_states, save_dir=None):
     
     draw_action_img = []
     for i in range(T):
-        img = input_obs[i]
+        img = recon_obs[i]
         img = cv2.resize(img, (256, 256), interpolation=cv2.INTER_LINEAR)
         H, W, C = img.shape
         for j in range(len(chosen_samples_list[i])):
@@ -148,7 +155,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--task', default='flattening')
     parser.add_argument('--log_dir', default='/data/models')
-    parser.add_argument('--save_dir', default='/data/sim2real')
+    parser.add_argument('--save_dir', default='./real_results')
     #parser.add_argument('--store_interm', action='store_true', help='store intermediate results')
     parser.add_argument('--eval_checkpoint', default=-1, type=int)
 
@@ -163,11 +170,12 @@ def parse_arguments():
 
     ## Grasping Protocol
     parser.add_argument('--adjust_pick', action='store_true')
-    parser.add_argument('--adjust_orien', action='store_true')
+    parser.add_argument('--adjust_orient', action='store_true')
 
     parser.add_argument('--goal_conditioned', action='store_true')
 
     parser.add_argument('--debug', action='store_true')
+    parser.add_argument('--wm', default='rssm', type=str)
 
 
 
@@ -180,7 +188,7 @@ if __name__ == "__main__":
 
     max_steps = 20
 
-    agent_name = "rssm"
+    #agent_name = "rssm"
     trained_arena = f"softgym|domain:clothfunnels-realadapt-{args.object},task:flattening,horizon:30"
     # capitalise the first letter of object
     capitalised_obj = args.object[0].upper() + args.object[1:]
@@ -188,7 +196,7 @@ if __name__ == "__main__":
     
 
     config = agar.retrieve_config(
-        agent_name, 
+        args.wm, 
         trained_arena, 
         args.agent_config,
         config_dir='configuration')
@@ -204,12 +212,17 @@ if __name__ == "__main__":
 
     #agent = agar.build_agent(agent_name, config)
     config.debug = args.debug
-    agent = RSSM(config)
+    if args.wm == 'rssm':
+        agent = RSSM(config)
+    elif args.wm == 'gc_rssm':
+        agent = GC_RSSM(config)
+    else:
+        raise ValueError(f"Unknown world model: {args.wm}")
     agent.set_eval()
     #logger = ag_ar.build_logger(arena.logger_name, config.save_dir)
     save_dir = os.path.join(
-        args.log_dir, f'ws_smplr_{agent_name}', f'{args.agent_config}+{args.sampler_config}')
-    model_dir = os.path.join(args.log_dir, trained_arena, f'{agent_name}', f'{args.agent_config}')
+        args.log_dir, f'ws_smplr_{args.wm}', f'{args.agent_config}+{args.sampler_config}')
+    model_dir = os.path.join(args.log_dir, trained_arena, f'{args.wm}', f'{args.agent_config}')
     agent.set_log_dir(model_dir)
 
     config_file = os.path.join('configs', args.sampler_config + '.yaml')
@@ -248,13 +261,14 @@ if __name__ == "__main__":
         sim2real = AgentArenaInterface(
             workspace_sampler, args.task, config_name, 
             checkpoint, max_steps, 
-            adjust_orien=args.adjust_orien, 
+            adjust_orien=args.adjust_orient, 
             adjust_pick=args.adjust_pick, 
             save_dir=args.save_dir,
             depth_sim2real=args.depth_sim2real,
             mask_sim2real=args.mask_sim2real,
             sim_camera_height=args.sim_camera_height,
             goal_conditioned=args.goal_conditioned,
+            whole_workspace=True,
             callback_on_internal_states=visualise_action_inference)
         
         sim2real.run()
