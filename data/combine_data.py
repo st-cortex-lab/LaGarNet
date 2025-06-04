@@ -25,12 +25,12 @@ def main():
     ]
 
     need_trj_nums = [
-        5000,
-        10000,
-        5000,
+        (2000-667-1000),
+        1000,
+        667,
     ]
 
-    target_datadir = f'gc_{args.obj}_flattening_offline_rl_mix_400k_3ratio1_compressed'
+    target_datadir = f'gc_{args.obj}_flattening_offline_rl_mix_400k_2ratio1_compressed'
 
 
     datasets = []

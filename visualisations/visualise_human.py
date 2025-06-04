@@ -13,12 +13,7 @@ def main():
 
     ### Argument Parsing
     parser = argparse.ArgumentParser()
-    # parser.add_argument('--arena', 
-    #     default="softgym|domain:mono-square-fabric,initial:crumple,"\
-    #         "action:pixel-pick-and-place(1),task:flattening")
-    # parser.add_argument('--agent', 
-    #     default="oracle-rect-fabric|action:pixel-pick-and-place(1),"
-    #             "strategy:expert,task:flattening")
+    
     parser.add_argument('--config',  default='default')
     parser.add_argument('--log_dir', default='tmp')
     parser.add_argument('--verbose', default='silence', type=str)
@@ -103,7 +98,8 @@ def main():
     # Visualize the rewards
     plot_results(
         rgbs, depths, masks,
-        actions=actions, reward_dict=rewad_dict, evaluation_dict=evaluation_dict, 
+        actions=actions, reward_dict=rewad_dict, 
+        evaluation_dict=evaluation_dict, 
         filename='human', sequence=horizon)
 
     # save these data

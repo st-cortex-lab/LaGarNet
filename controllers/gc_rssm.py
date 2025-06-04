@@ -291,7 +291,7 @@ class GC_RSSM(RSSM):
         
         return img_beliefs_, priors_
     
-    def _unroll_state_action(self, data, horizon=-1, batch_size=None):
+    def _unroll_state_action(self, data, horizon=None, batch_size=None):
 
          # Create initial belief and state for time t = 0
         init_belief = torch.zeros(
@@ -305,6 +305,8 @@ class GC_RSSM(RSSM):
         
 
         # Update belief/state using posterior from previous belief/state, previous action and current observation (over entire sequence at once)
+        if horizon == None:
+            horizon = len(data['action'])
 
         actions = data['action'][:horizon]
         non_terminals = (1 - data['terminal'])[:horizon].unsqueeze(-1)
@@ -530,11 +532,13 @@ class GC_RSSM(RSSM):
                 obs_data = data['observation']
                 act_data = data['action']['default']
                 if self.apply_reward_processor:
+                    #print('apply reward processor')
                     rewards = self.reward_processor(data['observation']['reward'], obs_data, act_data)
             else:
                 obs_data = data
                 act_data = data['action']
                 if self.apply_reward_processor:
+                    #print('apply reward processor')
                     rewards = self.reward_processor(data['reward'], obs_data, act_data)
             
            

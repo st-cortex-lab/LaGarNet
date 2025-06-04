@@ -60,6 +60,7 @@ class RSSM(RLAgent):
             state_size=self.config.stochastic_latent_dim,
             hidden_size=self.config.hidden_dim,
             activation_function=self.config.activation,
+            num_layers = self.config.get('reward_layers', 3)
         ).to(self.config.device)
 
         if self.config.encoder_mode == 'contrastive':
@@ -1178,7 +1179,7 @@ class RSSM(RLAgent):
     #                 save_path=os.path.join(self.save_dir, 'visualisations'))
     
 
-    def _unroll_state_action(self, data, horizon=-1, batch_size=None):
+    def _unroll_state_action(self, data, horizon=None, batch_size=None):
         
 
         init_belief = torch.zeros(
@@ -1188,6 +1189,9 @@ class RSSM(RLAgent):
         init_state = torch.zeros(
             self.config.batch_size if batch_size is None else batch_size,
             self.config.stochastic_latent_dim).to(self.config.device)
+        
+        if horizon == None:
+            horizon = len(data['action'])
         
         actions = data['action'][:horizon]
         non_terminals = (1 - data['terminal'])[:horizon].unsqueeze(-1)
@@ -1208,6 +1212,7 @@ class RSSM(RLAgent):
                 init_belief,
                 obs_emb['emb'], 
                 non_terminals)
+        #print('blfs', blfs.shape)
 
         posteriors_ = {
             'sample': posterior_states_,
@@ -1228,7 +1233,7 @@ class RSSM(RLAgent):
 
     def unroll_state_action(self, state, action):
 
-        print('action shape', action.shape)
+        #print('action shape', action.shape)
 
         blfs, prior_states_, prior_means_, prior_std_devs_, posterior_states_, posterior_means_, posterior_std_devs_ = \
             self.model['transition_model'](
@@ -1435,6 +1440,8 @@ class RSSM(RLAgent):
         #     self.config.stochastic_latent_dim).to(self.config.device)
         
         data['input_obs'] = data['input_obs'][1:]
+        # print('input data shape', data['input_obs'].shape)
+        # print('action shape', data['action'].shape)
         #data['output_obs'] = data['output_obs'][:-1]
 
         
@@ -1446,7 +1453,8 @@ class RSSM(RLAgent):
         rewards = data['reward']
         #input_obs = data['input_obs']
         #goal_obs = data['goal_obs']
-        output_obs = data['output_obs'][:-1]
+        output_obs = data['output_obs']
+        #print('otuput_obs shape', output_obs.shape)
 
 
         beliefs, posteriors, priors, _ = self._unroll_state_action(data)
@@ -1473,7 +1481,7 @@ class RSSM(RLAgent):
 
         reward_loss = F.mse_loss(
             pred_rewards, 
-            rewards[:-1],
+            rewards,
             reduction='none').mean(dim=(0, 1))
 
         kl_loss = self.compute_kl_loss(

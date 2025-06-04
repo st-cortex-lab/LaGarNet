@@ -17,7 +17,7 @@ from torchmetrics.image.kid import KernelInceptionDistance
 from torchmetrics.image.fid import FrechetInceptionDistance
 
 import agent_arena.api as ag_ar
-from agent_arena.utilities.visual_utils import plot_image_trajectory
+from agent_arena.utilities.visual_utils import plot_image_trajectory, plot_pick_and_place_trajectory
 from agent_arena.utilities.trajectory_dataset \
     import TrajectoryDataset
 from agent_arena.agent.utilities.torch_utils import *
@@ -258,8 +258,12 @@ def get_recon_results(agent, recon_object, config_name,
             gt = (gt*255)
         print('gt shape', gt.shape)
 
-        plot_image_trajectory(
+        actions = ts_to_np(process_data['action'][1:posterior_horizon + prior_horizon+1])
+
+
+        plot_pick_and_place_trajectory(
             gt[:, 0],
+            actions,
             save_path='tmp/recon/{}/{}/{}/trial_{}'.format(world_model, config_name, recon_object, i),
             title='ground_truth'
         )

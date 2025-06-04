@@ -24,6 +24,8 @@ def reward_bonus_and_penalty(rewards, observations, actions):
     above_0_9_5 = observations['normalised_coverage'][:] > 0.95
     rewards_[above_0_9_5] = 0.7
 
+    #print('HERRR!!!!')
+
 
     return rewards
 
