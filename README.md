@@ -129,3 +129,73 @@ python cloth_funnels/tasks/generate_tasks.py \
     --scale 0.4
 ```
 
+# Real-World Trials
+
+We use `ROS2 Humble` to setup our real-robot experiments.
+
+## 1. Set up the UR3e robot
+
+We use `robot-control-cloth` repository to assist this process. TODO: put the link.
+
+After making the above repository correctly installed.
+
+In the first terminal,
+```
+source /opt/ros/humble/setup.sh
+
+ros2 launch ur_robot_driver ur_control.launch.py ur_type:=ur3e robot_ip:=192.168.1.15 launch_rviz:=false
+
+```
+
+You may need to chagne the `robot_ip` to fit your setup.
+
+## 2. Initialised MoveIt!
+
+In the second terminal, go to the workspace that setup up `robot-control-cloth`. Then, run the following command to intialise MoveIt!
+
+```
+source /opt/ros/humble/setup.bash
+source ./rcc_build/install/setup.sh
+
+ros2 launch rcc_qs_pnp \
+    ur_robot_moveit_executable_launch.py \
+    ur_type:=ur3e \
+    executable:=quasi_static_pick_and_place.py \
+    planner:=ompl
+
+```
+
+## 3. Initilaise Agent-Arena
+
+**TODO: automate the following process**
+
+In the third terminal, go to the `agent-arena-v0` root directory, swith to branch `ros2-humble`. Then, build its conda environment under this branch by following the tutorial of agent-arena.
+
+Then, under `agent-arena-v0`, run
+
+```
+. ./setup
+```
+
+Following, Go to the workspace that setups `robot-control-cloth`, so that `rcc_msgs` for communication can be used.
+
+```
+source ./agar_build/install/setup.sh
+
+```
+
+Subsequently, go to the `robot-control-cloth` repo
+
+```
+. ./setup.sh
+
+```
+
+Finally, go to the root of this repo
+```
+. ./setup.sh
+```
+
+## 4. Run human interface
+
+In the third terminal, 
