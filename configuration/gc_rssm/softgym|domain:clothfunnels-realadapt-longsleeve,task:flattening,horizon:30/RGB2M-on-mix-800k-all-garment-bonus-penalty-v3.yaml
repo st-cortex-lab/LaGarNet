@@ -38,7 +38,6 @@ kl_overshooting_balance: 1.0
 reward_overshooting_scale: 0.1
 reward_overshooting_warmup: False
 
-
 optimiser_class: 'adam'
 optimiser_params: 
   lr: 1e-3

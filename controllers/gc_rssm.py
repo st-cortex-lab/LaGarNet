@@ -1,38 +1,3 @@
-# import os
-# import numpy as np
-# import cv2
-# from tqdm import tqdm
-# from typing import Optional, List
-# import torch
-# from torch.utils.data import DataLoader
-# from torch import nn
-# from torch.nn import functional as F
-# import torch.distributions as td
-# from pathlib import Path
-# import ruamel.yaml as yaml
-# import matplotlib.image as mpimg
-# import matplotlib.pyplot as plt
-# from torch.distributions.kl import kl_divergence
-# from torch.distributions import Normal
-# import logging
-
-# from agent_arena.agent.utilities.torch_utils import *
-# from agent_arena.registration.dataset import *
-# from agent_arena.agent.oracle.builder import OracleBuilder
-# from agent_arena.utilities.visual_utils import plot_pick_and_place_trajectory
-# from agent_arena.utilities.utils import TrainWriter
-# from agent_arena.utilities.transform.register import DATA_TRANSFORMER
-# from agent_arena import RLAgent
-# from agent_arena.utilities.logger.logger_interface import Logger
-
-# from .networks import ImageEncoder, ImageDecoder
-# from .memory import ExperienceReplay
-# from .contrastive import ContrastiveEncoder
-# from .logger import *
-# from .cost_functions import *
-# from .model import *
-
-
 import numpy as np
 from typing import Optional, List
 import torch
@@ -120,7 +85,8 @@ class GoalConditionedTransitionModel(nn.Module):
             _state = _state if nonterminals is None else _state * nonterminals[t]  # Mask if previous transition was terminal
   
             # Compute belief (deterministic hidden state)
-
+            # print('!state shape', _state.shape)
+            # print('!action shape', actions[t].shape)
             hidden = self.act_fn(self.fc_embed_state_action(torch.cat([_state, actions[t]], dim=1)))
             beliefs[t + 1] = self.rnn(hidden, beliefs[t])
             # Compute state prior by applying transition dynamics
@@ -190,12 +156,6 @@ class GC_RSSM(RSSM):
             'mask': np.expand_dims(mask, axis=(0)),
             'goal-mask': np.expand_dims(goal_mask, axis=(0)),
         }
-        # if self.config.input_obs in ['gc-depth', 'gc-rgb', 'gc-rgbd']:
-        #     if len(goal_mask.shape) == 2:
-        #         goal_mask = np.expand_dims(goal_mask, axis=0)
-        #     to_trans_dict['goal-mask'] = np.expand_dims(goal_mask, axis=(0))
-            
-
         res = self.transform(
             to_trans_dict, 
             train=False)
@@ -516,7 +476,7 @@ class GC_RSSM(RSSM):
     
     def _preprocess(self, data, train=False, single=False, apply_transform=True):
 
-        if self.config.datasets[0].name == 'default':
+        if self.config.datasets[0].name in ['default', 'prioritised']:
             if 'observation' in data:
                 obs_data = data['observation']
                 act_data = data['action']['default']

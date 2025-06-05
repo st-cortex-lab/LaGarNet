@@ -7,7 +7,9 @@ import torch
 import agent_arena as ag_ar
 from controllers.planet.rssm import RSSM
 from controllers.gc_rssm import GC_RSSM
-
+from agent_arena.registration.dataset import name_to_dataset
+from  planet_clothpick_plus_plus.data.prioritised_dataset import \
+    PrioritisedTrajectoryDataset, PrioritisedSampler
 
 def reward_bonus_and_penalty(rewards, observations, actions):
     if isinstance(rewards, torch.Tensor):
@@ -49,7 +51,8 @@ def main():
     args = parse_arguments()
 
     disp = args.disp == 1  # Convert disp to boolean directly
-
+    name_to_dataset['prioritised'] = PrioritisedTrajectoryDataset
+    
     #agent_name = "planet-clothpick++"
     trained_arena = f"softgym|domain:clothfunnels-realadapt-{args.object},task:flattening,horizon:30"
 
@@ -70,6 +73,8 @@ def main():
         agent = GC_RSSM(config)
     else:
         raise ValueError(f"Unknown world model: {args.wm}")
+    
+    
     
     if config.get('apply_transform_in_dataset', False):
         agent.set_reward_processor(reward_bonus_and_penalty)
