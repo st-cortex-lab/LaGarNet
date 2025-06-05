@@ -3,7 +3,6 @@ import os
 import numpy as np
 import cv2
 from tqdm import tqdm
-from typing import Optional, List
 import torch
 from torch.utils.data import DataLoader
 from torch import nn
@@ -20,7 +19,6 @@ import logging
 from agent_arena.agent.utilities.torch_utils import *
 from agent_arena.registration.dataset import *
 from agent_arena.agent.oracle.builder import OracleBuilder
-from agent_arena.utilities.visual_utils import plot_pick_and_place_trajectory
 from agent_arena.utilities.utils import TrainWriter
 from agent_arena.utilities.transform.register import DATA_TRANSFORMER
 from agent_arena import RLAgent
@@ -32,6 +30,8 @@ from .contrastive import ContrastiveEncoder
 from .logger import *
 from .cost_functions import *
 from .model import *
+from  planet_clothpick_plus_plus.data.prioritised_dataset import \
+    PrioritisedTrajectoryDataset, PrioritisedSampler
 
 
 class RSSM(RLAgent):
@@ -115,7 +115,7 @@ class RSSM(RLAgent):
             self.config.policy.name,
             config=planning_config)
         
-        
+        self.data_sampler = self.config.get('data_sampler', 'uniform')
         self.internal_states = {}
         self.logger = Logger()
         self.cur_state = {}
@@ -787,11 +787,20 @@ class RSSM(RLAgent):
 
 
         self.set_train()
-        train_dataloader = DataLoader(
-            train_dataset,
-            batch_size=self.config.batch_size,
-            num_workers=self.config.get('dataloader_workers', 0),
-            shuffle=True)
+        if self.data_sampler == 'prioritised':
+            train_dataloader = DataLoader(
+                train_dataset,
+                batch_size=self.config.batch_size,
+                sampler=PrioritisedSampler(train_dataset, self.config.batch_size),
+            )
+        elif self.data_sampler == 'uniform':
+            train_dataloader = DataLoader(
+                train_dataset,
+                batch_size=self.config.batch_size,
+                num_workers=self.config.get('dataloader_workers', 0),
+                shuffle=True)
+        else:
+            raise NotImplementedError
 
         
         
@@ -805,6 +814,13 @@ class RSSM(RLAgent):
             data = next(iter(train_dataloader))
 
             data = {k: v.to(self.config.device, non_blocking=True) for k,v in data.items()}
+
+            if self.data_sampler == 'prioritised':
+                indices = ts_to_np(data['idx'])
+                data.pop('idx')
+
+            #print('data key', data.keys())
+
             # for k, v in data.items():
             #     print(k, v.shape)
 
@@ -816,6 +832,11 @@ class RSSM(RLAgent):
             self.optimiser.zero_grad()
 
             losses = self.compute_losses(data, u)
+
+            if self.data_sampler == 'prioritised':
+                batch_reward_losses = ts_to_np(losses['batch_reward_losses'])
+                losses.pop('batch_reward_losses')
+                train_dataset.update_priorities(indices, batch_reward_losses)
             
 
             losses['total_loss'].backward()
@@ -832,6 +853,9 @@ class RSSM(RLAgent):
                 self.writer.add_scalar(kk, vv.detach().cpu().item(), u)
 
             updates.append(u)
+
+            
+
             
             if u%self.config.test_interval == 0:
                 self.set_eval()
@@ -1430,41 +1454,18 @@ class RSSM(RLAgent):
     
     def compute_losses(self, data, steps):
         
-        # Create initial belief and state for time t = 0
-        # init_belief = torch.zeros(
-        #     self.config.batch_size, 
-        #     self.config.deterministic_latent_dim).to(self.config.device)
-
-        # init_state = torch.zeros(
-        #     self.config.batch_size, 
-        #     self.config.stochastic_latent_dim).to(self.config.device)
+      
+        data['input_obs'] = data['input_obs'][1:] # T * B
         
-        data['input_obs'] = data['input_obs'][1:]
-        # print('input data shape', data['input_obs'].shape)
-        # print('action shape', data['action'].shape)
-        #data['output_obs'] = data['output_obs'][:-1]
-
-        
-
-        # Update belief/state using posterior from previous belief/state, previous action and current observation (over entire sequence at once)
-
-        #actions = data['action']
-        #non_terminals = 1 - data['terminal']
+       
         rewards = data['reward']
-        #input_obs = data['input_obs']
-        #goal_obs = data['goal_obs']
+      
         output_obs = data['output_obs']
-        #print('otuput_obs shape', output_obs.shape)
+        
 
 
         beliefs, posteriors, priors, _ = self._unroll_state_action(data)
-            # input_obs[1:], goal_obs[:-1], actions[:-1], 
-            # init_belief, init_state, non_terminals[:-1].unsqueeze(-1))
-        
-
-        # Calculate observation likelihood, reward likelihood and KL losses (for t = 0 only for latent overshooting); 
-        # sum over final dims, average over batch and time (original implementation, though paper seems to miss 1/T scaling?)
-
+          
         observation_loss = F.mse_loss(
             bottle(self.model['observation_model'], (beliefs, posteriors['sample'])), 
             output_obs[1:],
@@ -1479,10 +1480,14 @@ class RSSM(RLAgent):
         else:
             pred_rewards = bottle(self.model['reward_model'], (beliefs, posteriors['sample']))
 
-        reward_loss = F.mse_loss(
+        batch_reward_loss = F.mse_loss(
             pred_rewards, 
             rewards,
-            reduction='none').mean(dim=(0, 1))
+            reduction='none').mean(dim=(0))
+        
+        # batch-wise reward losses
+
+        reward_loss = batch_reward_loss.mean()
 
         kl_loss = self.compute_kl_loss(
             posteriors, priors, 
@@ -1514,6 +1519,7 @@ class RSSM(RLAgent):
         res = {
             'obs_loss': observation_loss,
             'reward_loss': reward_loss,
+            'batch_reward_losses': batch_reward_loss,
             'kl_loss': kl_loss,
             "posterior_entropy": posterior_entropy,
             "prior_entropy": prior_entropy,
