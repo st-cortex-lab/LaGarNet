@@ -318,7 +318,7 @@ class RSSM(RLAgent):
                 .squeeze(1).cpu().detach().numpy(),
             'latent_state': self.cur_state[arena_id],
             'input_type': self.config.input_obs,
-            'estimated_reward': self.model['reward_model'](self.cur_state[arena_id]['deter'], self.cur_state[arena_id]['stoch']['sample'])
+            'posterior_reward': self.model['reward_model'](self.cur_state[arena_id]['deter'], self.cur_state[arena_id]['stoch']['sample'])
                 .squeeze(0).cpu().detach().item(),
         }
 
