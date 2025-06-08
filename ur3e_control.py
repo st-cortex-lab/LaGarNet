@@ -42,9 +42,11 @@ def visualise_action_inference(internal_states, save_dir=None):
 
 
 
-    estimated_rewards = [its['estimated_reward'] for its in internal_states] # T * I
-    estimated_rewards = np.stack(estimated_rewards, axis=0)
-    print('estimated_rewards', estimated_rewards)
+    posterior_rewards = [its['posterior_reward'] for its in internal_states] # T * I
+    posterior_rewards = np.stack(posterior_rewards, axis=0)
+    print('posterior_rewards', posterior_rewards)
+
+    prior_rewards = []
 
     # for each T in interation_means, choose 10 samples evenly from the second dimension including the first and last samples   
     T, I, _, _ = interation_means.shape
@@ -99,6 +101,8 @@ def visualise_action_inference(internal_states, save_dir=None):
         # add the last sample
         #chosen_samples = np.append(chosen_samples, last_samples[-1])
         chosen_costs = -last_costs[::len(last_costs)//S]
+        print('chosen costs')
+        prior_rewards.append(chosen_costs[0])
         chosen_samples_list.append(chosen_samples[::-1])
         chosen_costs_list.append(chosen_costs[::-1])
         #chosen_costs = np.append(chosen_costs, last_costs[-1])
@@ -142,9 +146,11 @@ def visualise_action_inference(internal_states, save_dir=None):
     plot_image_trajectory(place_masks, save_path=f'{save_dir}/visualise_inference', title='place_masks')
 
     # save estimated rewards in human-readable format
-    estimated_rewards = np.array(estimated_rewards)
+    posterior_rewards = np.array(posterior_rewards)
+    prior_rewards = np.array(prior_rewards)
     json_data = {
-        'estimated_rewards': estimated_rewards.tolist(),
+        'posterior_rewards': posterior_rewards.tolist(),
+        'prior_rewards': prior_rewards.tolist()
     }
     with open(f'{save_dir}/info.json', 'w') as f:
         json.dump(json_data, f, indent=4)
