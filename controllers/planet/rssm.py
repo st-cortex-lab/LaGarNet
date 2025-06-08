@@ -120,6 +120,7 @@ class RSSM(RLAgent):
         self.logger = Logger()
         self.cur_state = {}
         self.apply_reward_processor = self.config.get('apply_reward_processor', False)
+        self.datasets = None
 
     def init_transition_model(self):
         self.model['transition_model'] = TransitionModel(
@@ -187,31 +188,33 @@ class RSSM(RLAgent):
         torch.backends.cudnn.benchmark = True
      
         if self.config.train_mode == 'offline':
-            datasets = {}
-            if 'datasets' in self.config:
-                if 'initialised_datasets' in self.config and self.config.initialised_datasets:
-                    datasets = self.config.datasets
+            if self.datasets == None:
+                datasets = {}
+                if 'datasets' in self.config:
+                    if 'initialised_datasets' in self.config and self.config.initialised_datasets:
+                        datasets = self.config.datasets
+                    else:
+                        for dataset_dict in self.config['datasets']:
+                            key = dataset_dict['key']
+                            print()
+                            print('Initialising dataset {} from name {}'.format(key, dataset_dict['name']))
+
+                            dataset_params = dataset_dict['params']
+                            
+                            
+                            dataset = name_to_dataset[dataset_dict['name']](
+                                **dataset_params)
+
+                            datasets[key] = dataset
                 else:
-                    for dataset_dict in self.config['datasets']:
-                        key = dataset_dict['key']
-                        print()
-                        print('Initialising dataset {} from name {}'.format(key, dataset_dict['name']))
+                    raise NotImplementedError
 
-                        dataset_params = dataset_dict['params']
-                        
-                        
-                        dataset = name_to_dataset[dataset_dict['name']](
-                            **dataset_params)
-
-                        datasets[key] = dataset
-            else:
-                raise NotImplementedError
-
-            for key, dataset in datasets.items():
-                if self.apply_transform_in_dataset:
-                    dataset.set_transform(self.transform)
+                for key, dataset in datasets.items():
+                    if self.apply_transform_in_dataset:
+                        dataset.set_transform(self.transform)
+                self.datasets = datasets
                 
-            self._train_offline(datasets, update_steps)
+            self._train_offline(self.datasets, update_steps)
 
         elif self.config.train_mode == 'online':
             policy_params = self.config.explore_policy.params
@@ -818,6 +821,7 @@ class RSSM(RLAgent):
             if self.data_sampler == 'prioritised':
                 indices = ts_to_np(data['idx'])
                 data.pop('idx')
+                
 
             #print('data key', data.keys())
 
@@ -826,6 +830,8 @@ class RSSM(RLAgent):
 
             data = self._preprocess(data, train=True, apply_transform=(not self.apply_transform_in_dataset))
             
+            if self.data_sampler == 'prioritised':
+                data['weights'] = np_to_ts(train_dataset.get_weights(indices), self.config.device)
 
             
 
@@ -834,6 +840,7 @@ class RSSM(RLAgent):
             losses = self.compute_losses(data, u)
 
             if self.data_sampler == 'prioritised':
+                #print('here!!!')
                 batch_reward_losses = ts_to_np(losses['batch_reward_losses'])
                 losses.pop('batch_reward_losses')
                 train_dataset.update_priorities(indices, batch_reward_losses)
@@ -845,6 +852,7 @@ class RSSM(RLAgent):
 
             # Collect Losses
             for kk, vv in losses.items():
+                #print('kk', kk)
                 if kk in losses_dict.keys():
                     losses_dict[kk].append(vv.detach().cpu().item())
                 else:
@@ -1471,7 +1479,11 @@ class RSSM(RLAgent):
             output_obs[1:],
             reduction='none')
 
-        observation_loss = observation_loss[:, :, :, :, :].sum(dim=(2, 3, 4)).mean(dim=(0, 1))
+        batch_observation_loss = observation_loss[:, :, :, :, :].sum(dim=(2, 3, 4)).mean(dim=(0))
+        if self.data_sampler == 'prioritised':
+            observation_loss = (data['weights'] * batch_observation_loss).mean()
+        else:
+            observation_loss = batch_observation_loss.mean()
 
         pred_rewards = bottle(self.model['reward_model'], (beliefs, posteriors['sample']))
 
@@ -1486,8 +1498,10 @@ class RSSM(RLAgent):
             reduction='none').mean(dim=(0))
         
         # batch-wise reward losses
-
-        reward_loss = batch_reward_loss.mean()
+        if self.data_sampler == 'prioritised':
+            reward_loss = (batch_reward_loss*data['weights']).mean()
+        else:
+            reward_loss = batch_reward_loss.mean()
 
         kl_loss = self.compute_kl_loss(
             posteriors, priors, 
@@ -1519,13 +1533,16 @@ class RSSM(RLAgent):
         res = {
             'obs_loss': observation_loss,
             'reward_loss': reward_loss,
-            'batch_reward_losses': batch_reward_loss,
+            #'batch_reward_losses': batch_reward_loss,
             'kl_loss': kl_loss,
             "posterior_entropy": posterior_entropy,
             "prior_entropy": prior_entropy,
             "kl_overshooting_loss": kl_overshooting_loss,
             "reward_overshooting_loss": reward_overshooting_loss
         }
+
+        if self.config.data_sampler == 'prioritised':
+            res['batch_reward_losses'] = batch_reward_loss
         
         if self.config.encoder_mode == 'contrastive':
             
