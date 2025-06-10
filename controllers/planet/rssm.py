@@ -30,7 +30,7 @@ from .contrastive import ContrastiveEncoder
 from .logger import *
 from .cost_functions import *
 from .model import *
-from  planet_clothpick_plus_plus.data.prioritised_dataset import \
+from ..prioritised_dataset import \
     PrioritisedTrajectoryDataset, PrioritisedSampler
 
 

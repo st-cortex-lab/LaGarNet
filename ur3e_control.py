@@ -175,8 +175,9 @@ def parse_arguments():
     parser.add_argument('--sim_camera_height', default=0.65, type=float)
 
     ## Grasping Protocol
-    parser.add_argument('--adjust_pick', action='store_true')
-    parser.add_argument('--adjust_orient', action='store_true')
+    parser.add_argument('--disable_adj_pick', action='store_true')
+    parser.add_argument('--disable_adj_orient', action='store_true')
+
 
     parser.add_argument('--goal_conditioned', action='store_true')
 
@@ -200,6 +201,8 @@ if __name__ == "__main__":
     capitalised_obj = args.object[0].upper() + args.object[1:]
     #test_arena = f"softgym|domain:ur3e-small{capitalised_obj},task:flattening,horizon:30"
     
+    adjust_pick= not args.disable_adj_pick
+    adjust_orien= not args.disable_adj_orient
 
     config = agar.retrieve_config(
         args.wm, 
@@ -242,7 +245,7 @@ if __name__ == "__main__":
 
     worspace_sampler_config = DotMap(worspace_sampler_config)
 
-    worspace_sampler_config.padding = 110
+    worspace_sampler_config.padding = 110 #220 #110
     worspace_sampler_config.debug = args.debug
     
 
@@ -267,8 +270,8 @@ if __name__ == "__main__":
         sim2real = AgentArenaInterface(
             workspace_sampler, args.task, config_name, 
             checkpoint, max_steps, 
-            adjust_orien=args.adjust_orient, 
-            adjust_pick=args.adjust_pick, 
+            adjust_orien=adjust_orien, 
+            adjust_pick=adjust_pick, 
             save_dir=args.save_dir,
             depth_sim2real=args.depth_sim2real,
             mask_sim2real=args.mask_sim2real,
