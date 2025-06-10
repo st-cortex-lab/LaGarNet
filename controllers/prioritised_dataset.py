@@ -10,13 +10,13 @@ class PrioritisedTrajectoryDataset(TrajectoryDataset):
         super().__init__(**kwargs)
         self.alpha = alpha
         self.beta = beta
-        self.priorities =  np.ones(self.num_samples, dtype=np.float32)
+        self.priorities =  np.ones(self.num_samples, dtype=np.float32)*1000
         #print('size priorities buffer', self.priorities.shape)
 
     def update_priorities(self, indices, priorities):
         priorities = np.asarray(priorities)
         priorities = (priorities + 1e-5) ** self.alpha
-        # print('priorities', priorities)
+        #print('priorities', priorities)
         # print('indices', indices)
         self.priorities[indices] = priorities
     
@@ -40,7 +40,7 @@ class PrioritisedSampler(torch.utils.data.Sampler):
         probs = self.dataset.priorities[:self.dataset.num_samples]
         #print('probs len', len(probs))
         probs /= probs.sum()
-        indices = np.random.choice(self.dataset.num_samples, self.batch_size, p=probs)
+        indices = np.random.choice(self.dataset.num_samples, self.batch_size, p=probs, replace=False)
         return iter(indices.tolist())
 
     

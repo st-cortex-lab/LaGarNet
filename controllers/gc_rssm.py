@@ -32,7 +32,7 @@ class GoalConditionedTransitionModel(nn.Module):
     __constants__ = ['min_std_dev']
 
     def __init__(self, belief_size, state_size, action_size, hidden_size, 
-                 embedding_size, activation_function='relu', min_std_dev=0.1, embedding_layers=1):
+                 embedding_size, activation_function='relu', min_std_dev=0.1, embedding_layers=1, state_layers=1):
         super().__init__()
         self.act_fn = getattr(F, activation_function)
         self.min_std_dev = min_std_dev
@@ -40,9 +40,9 @@ class GoalConditionedTransitionModel(nn.Module):
         
         self.fc_embed_state_action = self.make_layers(state_size+action_size, belief_size, hidden_size, embedding_layers)
         self.fc_embed_belief_prior = self.make_layers(belief_size+embedding_size, hidden_size, hidden_size, embedding_layers)
-        self.fc_state_prior = self.make_layers(hidden_size, 2 * state_size, hidden_size, embedding_layers)
+        self.fc_state_prior = self.make_layers(hidden_size, 2 * state_size, hidden_size, state_layers)
         self.fc_embed_belief_posterior = self.make_layers(belief_size + embedding_size*2, hidden_size, hidden_size, embedding_layers)
-        self.fc_state_posterior = self.make_layers(hidden_size, 2 * state_size, hidden_size, embedding_layers)
+        self.fc_state_posterior = self.make_layers(hidden_size, 2 * state_size, hidden_size, state_layers)
 
     def make_layers(self, input_dim, output_dim, hidden_dim, num_layers):
 
@@ -127,7 +127,8 @@ class GC_RSSM(RSSM):
             embedding_size=self.config.embedding_dim,
             activation_function=self.config.activation,
             min_std_dev=self.config.min_std_dev,
-            embedding_layers=self.config.trans_layers
+            embedding_layers=self.config.trans_layers,
+            state_layers=self.config.get('state_layers', 1)
         ).to(self.config.device)
     
     # def _update_helper(self, info, action, reset_internal=False):
@@ -476,7 +477,7 @@ class GC_RSSM(RSSM):
     
     def _preprocess(self, data, train=False, single=False, apply_transform=True):
 
-        if self.config.datasets[0].name in ['default', 'prioritised']:
+        if self.config.datasets[0].name in ['default', 'prioritised', 'count-based']:
             if 'observation' in data:
                 obs_data = data['observation']
                 act_data = data['action']['default']

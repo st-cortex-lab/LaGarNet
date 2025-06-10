@@ -32,7 +32,8 @@ from .cost_functions import *
 from .model import *
 from ..prioritised_dataset import \
     PrioritisedTrajectoryDataset, PrioritisedSampler
-
+from planet_clothpick_plus_plus.data.count_based_dataset import \
+    CountBasedDataset, CountBasedSampler
 
 class RSSM(RLAgent):
 
@@ -802,6 +803,11 @@ class RSSM(RLAgent):
                 batch_size=self.config.batch_size,
                 num_workers=self.config.get('dataloader_workers', 0),
                 shuffle=True)
+        elif self.data_sampler == 'count-based':
+            train_dataloader = DataLoader(
+                train_dataset,
+                batch_size=self.config.batch_size,
+                sampler=CountBasedSampler(train_dataset, self.config.batch_size))
         else:
             raise NotImplementedError
 
@@ -818,7 +824,7 @@ class RSSM(RLAgent):
 
             data = {k: v.to(self.config.device, non_blocking=True) for k,v in data.items()}
 
-            if self.data_sampler == 'prioritised':
+            if self.data_sampler in ['prioritised', 'count-based']:
                 indices = ts_to_np(data['idx'])
                 data.pop('idx')
                 
@@ -843,7 +849,11 @@ class RSSM(RLAgent):
                 #print('here!!!')
                 batch_reward_losses = ts_to_np(losses['batch_reward_losses'])
                 losses.pop('batch_reward_losses')
-                train_dataset.update_priorities(indices, batch_reward_losses)
+                batch_observation_losses = ts_to_np(losses['batch_observation_losses'])
+                losses.pop('batch_observation_losses')
+                train_dataset.update_priorities(indices, batch_observation_losses)
+            elif self.data_sampler == 'count-based':
+                train_dataset.update_counts(indices)
             
 
             losses['total_loss'].backward()
@@ -1543,6 +1553,7 @@ class RSSM(RLAgent):
 
         if self.config.data_sampler == 'prioritised':
             res['batch_reward_losses'] = batch_reward_loss
+            res['batch_observation_losses'] = batch_observation_loss
         
         if self.config.encoder_mode == 'contrastive':
             
