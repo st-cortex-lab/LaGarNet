@@ -10,6 +10,8 @@ from controllers.gc_rssm import GC_RSSM
 from agent_arena.registration.dataset import name_to_dataset
 from  planet_clothpick_plus_plus.data.prioritised_dataset import \
     PrioritisedTrajectoryDataset, PrioritisedSampler
+from planet_clothpick_plus_plus.data.count_based_dataset import \
+    CountBasedDataset, CountBasedSampler
 
 def reward_bonus_and_penalty(rewards, observations, actions):
     if isinstance(rewards, torch.Tensor):
@@ -52,6 +54,7 @@ def main():
 
     disp = args.disp == 1  # Convert disp to boolean directly
     name_to_dataset['prioritised'] = PrioritisedTrajectoryDataset
+    name_to_dataset['count-based'] = CountBasedDataset
     
     #agent_name = "planet-clothpick++"
     trained_arena = f"softgym|domain:clothfunnels-realadapt-{args.object},task:flattening,horizon:30"
