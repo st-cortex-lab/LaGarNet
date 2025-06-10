@@ -22,7 +22,14 @@ from agent_arena.utilities.visual_utils import \
     draw_pick_and_place, plot_image_trajectory
 from controllers.gc_rssm import GC_RSSM
 
+
+def success_check_fn(state):
+    return state['normalised_coverage'] > 0.9 and state['max_IoU'] > 0.8
+
 def visualise_action_inference(internal_states, save_dir=None):
+
+    if len(internal_states) == 0:
+        return
 
     print('internal_states', internal_states[0].keys())
 
@@ -268,16 +275,20 @@ if __name__ == "__main__":
         
         ### Run Sim2Real ###
         sim2real = AgentArenaInterface(
-            workspace_sampler, args.task, config_name, 
-            checkpoint, max_steps, 
+            workspace_sampler,config_name, 
+            checkpoint, 
+            task=args.task, 
             adjust_orien=adjust_orien, 
-            adjust_pick=adjust_pick, 
+            adjust_pick=adjust_pick,
+            steps=20,
             save_dir=args.save_dir,
             depth_sim2real=args.depth_sim2real,
             mask_sim2real=args.mask_sim2real,
             sim_camera_height=args.sim_camera_height,
             goal_conditioned=args.goal_conditioned,
+            human_success_judgement=False,
             whole_workspace=True,
+            success_check_fn = success_check_fn,
             callback_on_internal_states=visualise_action_inference)
         
         sim2real.run()

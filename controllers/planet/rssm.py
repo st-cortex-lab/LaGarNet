@@ -32,7 +32,7 @@ from .cost_functions import *
 from .model import *
 from ..prioritised_dataset import \
     PrioritisedTrajectoryDataset, PrioritisedSampler
-from planet_clothpick_plus_plus.data.count_based_dataset import \
+from ..count_based_dataset import \
     CountBasedDataset, CountBasedSampler
 
 class RSSM(RLAgent):
@@ -324,6 +324,7 @@ class RSSM(RLAgent):
             'input_type': self.config.input_obs,
             'posterior_reward': self.model['reward_model'](self.cur_state[arena_id]['deter'], self.cur_state[arena_id]['stoch']['sample'])
                 .squeeze(0).cpu().detach().item(),
+            'recon_obs': self.model['observation_model'](self.cur_state[arena_id]['deter'], self.cur_state[arena_id]['stoch']['sample']).cpu().detach()
         }
 
     def init(self, infos):
