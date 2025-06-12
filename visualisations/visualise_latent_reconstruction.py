@@ -214,13 +214,13 @@ def get_recon_results(agent, recon_object, config_name,
 
         ### Get Piror Latent States
         if world_model == 'gc_rssm':
-            prior_lastent_states = agent.unroll_action(
+            prior_latent_states = agent.unroll_action(
                 last_post,
                 process_data['action'][posterior_horizon: posterior_horizon + prior_horizon],
                 goal_obs=process_data['goal_obs'][posterior_horizon: posterior_horizon + prior_horizon]
             )
         elif world_model == 'rssm':
-            prior_lastent_states = agent.unroll_action(
+            prior_latent_states = agent.unroll_action(
                 last_post,
                 process_data['action'][posterior_horizon: posterior_horizon + prior_horizon]
             )
@@ -230,7 +230,7 @@ def get_recon_results(agent, recon_object, config_name,
         # print('\n!!!!! Prior Output')
         # print_information(prior_lastent_states)
 
-        prior_recon_image = agent.visual_reconstruct(prior_lastent_states)
+        prior_recon_image = agent.visual_reconstruct(prior_latent_states)
 
         # print('\n!!!!! Prior Recon')
         # print_information(prior_recon_image)
