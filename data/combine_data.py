@@ -3,7 +3,7 @@
 # import sys
 # sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from utils import obs_config, obs_config_, compress_obs_config, action_config, reward_names, plot_results, evaluation_names
+from lagarnet.utils import obs_config, obs_config_, compress_obs_config, action_config, reward_names, plot_results, evaluation_names
 from agent_arena.utilities.trajectory_dataset \
     import TrajectoryDataset
 import argparse
@@ -18,22 +18,16 @@ def main():
     args = parser.parse_args()
 
     data_path = [
-        'gc_skirt_flattening_offline_rl_diffusion_100k_extra_compressed',
-        'gc_pants_flattening_offline_rl_diffusion_100k_extra_compressed',
-        'gc_longsleeve_flattening_offline_rl_diffusion_100k_extra_compressed',
-        'gc_dress_flattening_offline_rl_diffusion_100k_extra_compressed',
-        'gc_all_garment_flattening_offline_rl_mix_800k_compressed',
+        'gc_longsleeve_flattening_offline_rl_diffusion_200k_compressed',
+        'gc_longsleeve_flattening_offline_rl_mask_biased_200k_compressed'
     ]
 
     need_trj_nums = [
-        5000,
-        5000,
-        5000,
-        5000,
-        40000
+        7500,
+        2500
     ]
 
-    target_datadir = f'gc_{args.obj}_flattening_offline_rl_mix_1p2M_2ratio1_compressed'
+    target_datadir = f'gc_{args.obj}_flattening_offline_rl_mix_200k_3ratio1_compressed'
 
 
     datasets = []

@@ -5,12 +5,12 @@ import numpy as np
 import torch
 
 import agent_arena as ag_ar
-from controllers.planet.rssm import RSSM
-from controllers.gc_rssm import GC_RSSM
+from lagarnet.controllers.planet.rssm import RSSM
+from lagarnet.controllers.gc_rssm import GC_RSSM
 from agent_arena.registration.dataset import name_to_dataset
-from controllers.prioritised_dataset import \
+from lagarnet.controllers.prioritised_dataset import \
     PrioritisedTrajectoryDataset, PrioritisedSampler
-from controllers.count_based_dataset import \
+from lagarnet.controllers.count_based_dataset import \
     CountBasedDataset, CountBasedSampler
 
 def reward_bonus_and_penalty(rewards, observations, actions):
