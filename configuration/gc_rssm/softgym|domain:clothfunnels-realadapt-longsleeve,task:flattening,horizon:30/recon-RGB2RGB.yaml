@@ -3,7 +3,7 @@ debug: False
 train_mode: 'offline'
 
 input_obs: "rgb"
-output_obs: "mask"
+output_obs: "rgb"
 
 deterministic_latent_dim: 300 ## 200
 stochastic_latent_dim: 60 ## 30
@@ -14,7 +14,7 @@ min_std_dev: 0.1
 activation: 'relu'
 trans_layers: 1
 input_obs_dim: [3, 64, 64]
-output_obs_dim: [1, 64, 64]
+output_obs_dim: [3, 64, 64]
 encoder_batchnorm: False
 encoder_residual: False
 decoder_batchnorm: False

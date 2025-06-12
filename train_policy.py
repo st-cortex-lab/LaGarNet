@@ -8,9 +8,9 @@ import agent_arena as ag_ar
 from controllers.planet.rssm import RSSM
 from controllers.gc_rssm import GC_RSSM
 from agent_arena.registration.dataset import name_to_dataset
-from  planet_clothpick_plus_plus.data.prioritised_dataset import \
+from controllers.prioritised_dataset import \
     PrioritisedTrajectoryDataset, PrioritisedSampler
-from planet_clothpick_plus_plus.data.count_based_dataset import \
+from controllers.count_based_dataset import \
     CountBasedDataset, CountBasedSampler
 
 def reward_bonus_and_penalty(rewards, observations, actions):
