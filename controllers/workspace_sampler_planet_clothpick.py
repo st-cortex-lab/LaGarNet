@@ -33,6 +33,7 @@ class WorkspaceSamplerPlaNetClothPick(WorkspaceSampler):
         self.prioritise_middle = self.config.get('prioritise_middle', False)
         self.continue_internal_updates = self.config.get('continue_internal_updates', False)
         
+        #print('continue internal updates!!!!!!!\n!!!!!!!!', self.continue_internal_updates)
         if config.checkpoint == -1:
             self.agent.load()
         else:
