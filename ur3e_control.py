@@ -5,10 +5,12 @@ import traceback
 import yaml
 import json
 import cv2
-
+from dotmap import DotMap
+from matplotlib import cm
 import rclpy
 
 import agent_arena as agar
+from agent_arena import TrainableAgent
 
 import argparse
 from robot_control_cloth.interface.utils import *
@@ -17,10 +19,12 @@ from robot_control_cloth.interface.agent_arena_interface import AgentArenaInterf
 from lagarnet.controllers.workspace_sampler_planet_clothpick \
     import WorkspaceSamplerPlaNetClothPick
 from lagarnet.controllers.planet.rssm import RSSM
-from matplotlib import cm
+
 from agent_arena.utilities.visual_utils import \
     draw_pick_and_place, plot_image_trajectory
 from lagarnet.controllers.gc_rssm import GC_RSSM
+from lagarnet.controllers.mask_biased_pixel_pick_and_place_policy \
+    import GarmentMaskBiasedPixelPickAndPlacePolicy
 
 
 def success_check_fn(state):
@@ -211,30 +215,37 @@ if __name__ == "__main__":
     adjust_pick= not args.disable_adj_pick
     adjust_orien= not args.disable_adj_orient
 
-    config = agar.retrieve_config(
-        args.wm, 
-        trained_arena, 
-        args.config,
-        config_dir='configuration')
-    
-    # TODO: Check if this is necessary
-    config.transform.params.depth_clip_min = 0 #0.72
-    config.transform.params.depth_clip_max = 1.0 #0.76
-    config.transform.params.depth_min = 0 # 0.72
-    config.transform.params.depth_max = 1.0 # 0.76
-    config.transform.params.depth_eval_process = False
-    config.transform.params.rgb_eval_process = False
+    if args.wm in ['rssm', 'gc_rssm']:
+        config = agar.retrieve_config(
+            args.wm, 
+            trained_arena, 
+            args.config,
+            config_dir='configuration')
+        
+        # TODO: Check if this is necessary
+        config.transform.params.depth_clip_min = 0 #0.72
+        config.transform.params.depth_clip_max = 1.0 #0.76
+        config.transform.params.depth_min = 0 # 0.72
+        config.transform.params.depth_max = 1.0 # 0.76
+        config.transform.params.depth_eval_process = False
+        config.transform.params.rgb_eval_process = False
+
+        config.debug = args.debug
     
 
     #agent = agar.build_agent(agent_name, config)
-    config.debug = args.debug
+    
     if args.wm == 'rssm':
         agent = RSSM(config)
+        agent.set_eval()
     elif args.wm == 'gc_rssm':
         agent = GC_RSSM(config)
+        agent.set_eval()
+    elif args.wm == 'mask-biased-random':
+        agent = GarmentMaskBiasedPixelPickAndPlacePolicy(DotMap())
     else:
         raise ValueError(f"Unknown world model: {args.wm}")
-    agent.set_eval()
+    
     #logger = ag_ar.build_logger(arena.logger_name, config.save_dir)
     save_dir = os.path.join(
         args.log_dir, f'ws_smplr_{args.wm}', f'{args.config}+{args.sampler_config}')
@@ -247,8 +258,11 @@ if __name__ == "__main__":
         worspace_sampler_config = yaml.safe_load(f)
 
     worspace_sampler_config['agent'] = agent
-    worspace_sampler_config['checkpoint'] = int(args.eval_checkpoint)
-    worspace_sampler_config['policy'] = {'params': config.policy.params}
+    
+
+    if args.wm in ['rssm', 'gc_rssm']:
+        worspace_sampler_config['checkpoint'] = int(args.eval_checkpoint)
+        worspace_sampler_config['policy'] = {'params': config.policy.params}
 
 
     worspace_sampler_config = DotMap(worspace_sampler_config)
@@ -261,12 +275,14 @@ if __name__ == "__main__":
         worspace_sampler_config)
     workspace_sampler.set_log_dir(save_dir)
 
+    checkpoint = -1
 
-    if args.eval_checkpoint == -1:
-        checkpoint = agent.load()
-    else:
-        agent.load_checkpoint(int(args.eval_checkpoint))
-        checkpoint = args.eval_checkpoint
+    if isinstance(agent, TrainableAgent):
+        if args.eval_checkpoint == -1:
+            checkpoint = agent.load()
+        else:
+            agent.load_checkpoint(int(args.eval_checkpoint))
+            checkpoint = args.eval_checkpoint
     config_name = args.sampler_config + '+' + args.config
     print('Finsh Initialising Agent ...')
 
@@ -290,7 +306,8 @@ if __name__ == "__main__":
             human_success_judgement=False,
             whole_workspace=True,
             success_check_fn = success_check_fn,
-            callback_on_internal_states=visualise_action_inference)
+            callback_on_internal_states= (visualise_action_inference if isinstance(agent, TrainableAgent) else lambda x: None),
+            )
         
         sim2real.run()
     except Exception as e:
