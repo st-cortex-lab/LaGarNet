@@ -14,13 +14,13 @@ import argparse
 from robot_control_cloth.interface.utils import *
 from robot_control_cloth.interface.agent_arena_interface import AgentArenaInterface
 
-from controllers.workspace_sampler_planet_clothpick \
+from lagarnet.controllers.workspace_sampler_planet_clothpick \
     import WorkspaceSamplerPlaNetClothPick
-from controllers.planet.rssm import RSSM
+from lagarnet.controllers.planet.rssm import RSSM
 from matplotlib import cm
 from agent_arena.utilities.visual_utils import \
     draw_pick_and_place, plot_image_trajectory
-from controllers.gc_rssm import GC_RSSM
+from lagarnet.controllers.gc_rssm import GC_RSSM
 
 
 def success_check_fn(state):
@@ -172,7 +172,7 @@ def parse_arguments():
     #parser.add_argument('--store_interm', action='store_true', help='store intermediate results')
     parser.add_argument('--eval_checkpoint', default=-1, type=int)
 
-    parser.add_argument('--agent_config',  default='RGB2M-on-mix-200k-sf')
+    parser.add_argument('--config',  default='RGB2M-on-mix-200k-sf')
     parser.add_argument('--object', default='longsleeve', type=str)
     parser.add_argument('--sampler_config', default='cloth-mask-centre-multiple-prioritise-middle', type=str)
 
@@ -214,7 +214,7 @@ if __name__ == "__main__":
     config = agar.retrieve_config(
         args.wm, 
         trained_arena, 
-        args.agent_config,
+        args.config,
         config_dir='configuration')
     
     # TODO: Check if this is necessary
@@ -237,8 +237,8 @@ if __name__ == "__main__":
     agent.set_eval()
     #logger = ag_ar.build_logger(arena.logger_name, config.save_dir)
     save_dir = os.path.join(
-        args.log_dir, f'ws_smplr_{args.wm}', f'{args.agent_config}+{args.sampler_config}')
-    model_dir = os.path.join(args.log_dir, trained_arena, f'{args.wm}', f'{args.agent_config}')
+        args.log_dir, f'ws_smplr_{args.wm}', f'{args.config}+{args.sampler_config}')
+    model_dir = os.path.join(args.log_dir, trained_arena, f'{args.wm}', f'{args.config}')
     agent.set_log_dir(model_dir)
 
     config_file = os.path.join('configs', args.sampler_config + '.yaml')
@@ -249,6 +249,7 @@ if __name__ == "__main__":
     worspace_sampler_config['agent'] = agent
     worspace_sampler_config['checkpoint'] = int(args.eval_checkpoint)
     worspace_sampler_config['policy'] = {'params': config.policy.params}
+
 
     worspace_sampler_config = DotMap(worspace_sampler_config)
 
@@ -266,7 +267,7 @@ if __name__ == "__main__":
     else:
         agent.load_checkpoint(int(args.eval_checkpoint))
         checkpoint = args.eval_checkpoint
-    config_name = args.sampler_config + '+' + args.agent_config
+    config_name = args.sampler_config + '+' + args.config
     print('Finsh Initialising Agent ...')
 
     sim2real = None
