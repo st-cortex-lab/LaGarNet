@@ -243,6 +243,7 @@ if __name__ == "__main__":
         agent.set_eval()
     elif args.wm == 'mask-biased-random':
         agent = GarmentMaskBiasedPixelPickAndPlacePolicy(DotMap())
+        args.config = 'default'
     else:
         raise ValueError(f"Unknown world model: {args.wm}")
     
@@ -283,7 +284,7 @@ if __name__ == "__main__":
         else:
             agent.load_checkpoint(int(args.eval_checkpoint))
             checkpoint = args.eval_checkpoint
-    config_name = args.sampler_config + '+' + args.config
+    config_name = args.wm + '+' + args.sampler_config + '+' + args.config
     print('Finsh Initialising Agent ...')
 
     sim2real = None
