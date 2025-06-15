@@ -2,6 +2,8 @@ import os
 import numpy as np
 from agent_arena.utilities.visual_utils \
     import draw_pick_and_place
+from agent_arena import TrainableAgent
+
 from matplotlib import pyplot as plt
 
 from .workspace_sampler import WorkspaceSampler
@@ -34,10 +36,11 @@ class WorkspaceSamplerPlaNetClothPick(WorkspaceSampler):
         self.continue_internal_updates = self.config.get('continue_internal_updates', False)
         
         #print('continue internal updates!!!!!!!\n!!!!!!!!', self.continue_internal_updates)
-        if config.checkpoint == -1:
-            self.agent.load()
-        else:
-            self.agent.load_checkpoint(config.checkpoint)
+        if isinstance(self.agent, TrainableAgent):
+            if config.checkpoint == -1:
+                self.agent.load()
+            else:
+                self.agent.load_checkpoint(config.checkpoint)
 
     def unroll_action_from_cur_state(self, actions, state):
         return self.agent.unroll_action_from_cur_state(actions, state)
@@ -81,12 +84,15 @@ class WorkspaceSamplerPlaNetClothPick(WorkspaceSampler):
             internal_states = self.agent.get_state()
             #print('internal_states:', internal_states)
 
-            est_cost = [internal_states[aid]['action_cost'] for aid in arena_ids]
+            if isinstance(self.agent, TrainableAgent):
+                est_cost = [internal_states[aid]['action_cost'] for aid in arena_ids]
 
-            # Find the action that produces the highest reward estimation
-            best_idx = np.argmin(est_cost)
-            best_action = actions[best_idx]
-            r_act = self._remap_action(best_action, info, new_infos[best_idx])
+                # Find the action that produces the highest reward estimation
+                best_idx = np.argmin(est_cost)
+                best_action = actions[best_idx]
+                r_act = self._remap_action(best_action, info, new_infos[best_idx])
+            else:
+                best_action = actions[0]
             ret_actions.append(best_action)
         self.last_actions = ret_actions
         print('ret_actions:', ret_actions)

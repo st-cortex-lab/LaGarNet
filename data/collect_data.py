@@ -51,7 +51,7 @@ from agent_arena.utilities.perform_parallel \
     import step_arenas
 
 from agent_arena.utilities.trajectory_dataset import TrajectoryDataset
-from utils import obs_config, action_config, reward_names, evaluation_names
+from lagarnet.utils import obs_config, action_config, reward_names, evaluation_names
 from tqdm import tqdm
 
 def get_actions(agents, arena_ids, ready_infos, actions):
