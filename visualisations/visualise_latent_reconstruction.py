@@ -23,8 +23,8 @@ from agent_arena.utilities.trajectory_dataset \
 from agent_arena.agent.utilities.torch_utils import *
 
 
-from utils import obs_config, compress_obs_config, reward_names, plot_results, evaluation_names
-from controllers.planet.rssm import RSSM
+from lagarnet.utils import obs_config, compress_obs_config, reward_names, plot_results, evaluation_names
+from lagarnet.controllers.planet.rssm import RSSM
 
 action_config = {
     'norm-pixel-pick-and-place': {'shape': (2, 2), 'output_key': 'default'},
@@ -357,7 +357,7 @@ def main():
     if args.wm == 'rssm':
         agent = RSSM(config)
     elif args.wm == 'gc_rssm':
-        from controllers.gc_rssm import GC_RSSM
+        from lagarnet.controllers.gc_rssm import GC_RSSM
         agent = GC_RSSM(config)
     else:
         raise ValueError(f"Unknown world model: {args.wm}")

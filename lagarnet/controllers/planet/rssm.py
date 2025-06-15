@@ -44,7 +44,7 @@ class RSSM(RLAgent):
         self.no_op = np.asarray(config.no_op).flatten()
         self.model = dict()
         self.init_transition_model()
-        
+        self.reward_processor = lambda r, s, a: r
         
 
         self.model['observation_model'] = ImageDecoder(
