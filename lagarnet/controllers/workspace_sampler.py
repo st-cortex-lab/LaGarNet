@@ -1,4 +1,5 @@
 from agent_arena import Agent
+from agent_arena import TrainableAgent
 import numpy as np
 from agent_arena.utilities.visual_utils \
     import draw_pick_and_place
@@ -8,7 +9,8 @@ class WorkspaceSampler(Agent):
     def __init__(self, config):
         super().__init__(config)
         self.agent = config.agent
-        self.agent.load_checkpoint(config.checkpoint)
+        if isinstance(self.agent, TrainableAgent):  
+            self.agent.load_checkpoint(config.checkpoint)
     
     def reset(self, arena_ids):
         self.agent.reset(arena_ids)
