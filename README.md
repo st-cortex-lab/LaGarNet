@@ -165,37 +165,12 @@ ros2 launch rcc_qs_pnp \
 
 ```
 
-## 3. Initilaise Agent-Arena
+## 3. Setup LaGarNet for Real World Experiment
 
-**TODO: automate the following process**
 
-In the third terminal, go to the `agent-arena-v0` root directory, swith to branch `ros2-humble`. Then, build its conda environment under this branch by following the tutorial of agent-arena.
+1. Make sure the `agent-arena-v0` root directory, swith to branch `ros2-humble`. Then, build its conda environment under this branch by following the tutorial of agent-arena.
 
-Then, under `agent-arena-v0`, run
-
+2. Go to the root of this `LaGarNet` repo
 ```
-. ./setup
+. ./setup.sh real-world
 ```
-
-Following, Go to the workspace that setups `robot-control-cloth`, so that `rcc_msgs` for communication can be used.
-
-```
-source ./agar_build/install/setup.sh
-
-```
-
-Subsequently, go to the `robot-control-cloth` repo
-
-```
-. ./setup.sh
-
-```
-
-Finally, go to the root of this repo
-```
-. ./setup.sh
-```
-
-## 4. Run human interface
-
-In the third terminal, 
