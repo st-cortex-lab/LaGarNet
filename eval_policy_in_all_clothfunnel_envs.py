@@ -4,8 +4,8 @@ import os
 
 import agent_arena as ag_ar
 
-from controllers.planet.rssm import RSSM
-from controllers.gc_rssm import GC_RSSM
+from lagarnet.controllers.planet.rssm import RSSM
+from lagarnet.controllers.gc_rssm import GC_RSSM
 
 def parse_arguments():
     """Parse command-line arguments."""
