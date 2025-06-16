@@ -307,7 +307,7 @@ if __name__ == "__main__":
             human_success_judgement=False,
             whole_workspace=True,
             success_check_fn = success_check_fn,
-            callback_on_internal_states= (visualise_action_inference if isinstance(agent, TrainableAgent) else lambda x: None),
+            callback_on_internal_states= (visualise_action_inference if isinstance(agent, TrainableAgent) else lambda x, y: None),
             )
         
         sim2real.run()
