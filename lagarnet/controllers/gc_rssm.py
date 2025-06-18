@@ -484,12 +484,16 @@ class GC_RSSM(RSSM):
                 if self.apply_reward_processor:
                     #print('apply reward processor')
                     rewards = self.reward_processor(data['observation']['reward'], obs_data, act_data)
+                else:
+                    rewards = data['observation']['reward']
             else:
                 obs_data = data
                 act_data = data['action']
                 if self.apply_reward_processor:
                     #print('apply reward processor')
                     rewards = self.reward_processor(data['reward'], obs_data, act_data)
+                else:
+                    rewards = data['reward']
             
            
            

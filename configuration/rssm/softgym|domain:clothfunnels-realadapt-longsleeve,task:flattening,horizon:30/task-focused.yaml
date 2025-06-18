@@ -1,14 +1,14 @@
 device: 'cuda:0'
-debug: False
 train_mode: 'offline'
+
 
 input_obs: "rgb"
 output_obs: "mask"
 
-deterministic_latent_dim: 300 ## 200
-stochastic_latent_dim: 60 ## 30
+deterministic_latent_dim: 200
+stochastic_latent_dim: 30
 action_dim: 4
-hidden_dim: 300 ## 200
+hidden_dim: 200
 embedding_dim: 1024
 min_std_dev: 0.1
 activation: 'relu'
@@ -22,16 +22,13 @@ decoder_residual: False
 no_op: [1, 1, 1, 1]
 free_nats: 1
 symlog: False
-# data_sampler: "count-based"
 
-state_layers: 2
 observation_scale: 1.0
 reward_scale: 1.0
 reward_gradient_stop: False
 kl_balance: 0.8
 kl_scale: 1.0
 kl_balancing: True
-reward_layers: 5 #3
 
 overshooting_distance: 2  
 kl_overshooting_scale: 0.1
@@ -39,6 +36,7 @@ kl_overshooting_warmup: True
 kl_overshooting_balance: 1.0
 reward_overshooting_scale: 0.1
 reward_overshooting_warmup: False
+
 
 optimiser_class: 'adam'
 optimiser_params: 
@@ -64,8 +62,6 @@ apply_transform_in_dataset: True
 dataloader_workers: 0
 dataloader_prefetch_factor: 1
 
-apply_reward_processor: True
-
 transform:
   name: 'pick_and_place_transformer_v1'
   params:
@@ -81,7 +77,7 @@ transform:
     rotation_degree: 1
     # all_goal_rotate: True
     # goal_translate: 0.2
-    # preserve_goal_mask: False
+    # preserve_goal_mask: True
     vertical_flip: True
     random_resize: False
     action_noise: 0.0
@@ -113,8 +109,8 @@ datasets:
 
     name: 'default'
     params:
-      data_path: 'gc_longsleeve_flattening_offline_rl_mix_300k_2ratio1_compressed' #diffusion_policy_on_softgym|domain:cloth-funnel-real2sim-longsleeve,task:flattening,horizon:20'
-      data_dir: './data/datasets'
+      data_path: 'gc_longsleeve_flattening_offline_rl_mix_300k_2ratio1_compressed' #'diffusion_policy_on_softgym|domain:cloth-funnel-real2sim-longsleeve,task:flattening,horizon:20'
+      data_dir:  './data/datasets'
       seq_length: 50
       cross_trajectory: True
       split_ratios: [0.01, 0.01, 0.98]
@@ -127,19 +123,15 @@ datasets:
         rgb:
           shape: [64, 64, 3]
           output_key: 'rgb'
-        goal-mask: 
-          shape: [64, 64, 1]
-          output_key: 'goal-mask'
-        goal-rgb:
-          shape: [64, 64, 3]
-          output_key: 'goal-rgb'
-        speedFolding_approx:
+        # goal-mask: 
+        #   shape: [64, 64, 1]
+        #   output_key: 'goal-mask'
+        # goal-rgb:
+        #   shape: [64, 64, 3]
+        #   output_key: 'goal-rgb'
+        planet_clothpick_hueristic:
           shape: [1]
           output_key: 'reward'
-        
-        normalised_coverage:
-          shape: [1]
-          output_key: 'normalised_coverage'
       
       act_config:
         norm-pixel-pick-and-place: 
@@ -166,20 +158,15 @@ datasets:
         rgb:
           shape: [64, 64, 3]
           output_key: 'rgb'
-        goal-mask: 
-          shape: [64, 64, 1]
-          output_key: 'goal-mask'
-        goal-rgb:
-          shape: [64, 64, 3]
-          output_key: 'goal-rgb'
-        speedFolding_approx:
+        # goal-mask: 
+        #   shape: [64, 64, 1]
+        #   output_key: 'goal-mask'
+        # goal-rgb:
+        #   shape: [64, 64, 3]
+        #   output_key: 'goal-rgb'
+        planet_clothpick_hueristic:
           shape: [1]
           output_key: 'reward'
-
-        normalised_coverage:
-          shape: [1]
-          output_key: 'normalised_coverage'
-        
       
       act_config:
         norm-pixel-pick-and-place: 
