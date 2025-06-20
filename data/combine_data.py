@@ -18,16 +18,16 @@ def main():
     args = parser.parse_args()
 
     data_path = [
+        'gc_longsleeve_flattening_offline_rl_diffusion_100k_extra_compressed',
         'gc_longsleeve_flattening_offline_rl_diffusion_200k_compressed',
-        'gc_longsleeve_flattening_offline_rl_mask_biased_200k_compressed'
     ]
 
     need_trj_nums = [
-        3333,
-        1667
+        5000,
+        10000,
     ]
 
-    target_datadir = f'gc_{args.obj}_flattening_offline_rl_mix_100k_2ratio1_compressed'
+    target_datadir = f'gc_{args.obj}_flattening_offline_rl_diffusion_300k_compressed'
 
 
     datasets = []
