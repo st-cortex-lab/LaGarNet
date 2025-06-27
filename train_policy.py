@@ -5,9 +5,13 @@ import numpy as np
 import torch
 
 import agent_arena as ag_ar
-from controllers.planet.rssm import RSSM
-# from controllers.gc_rssm import GC_RSSM
-
+from lagarnet.controllers.planet.rssm import RSSM
+from lagarnet.controllers.gc_rssm import GC_RSSM
+from agent_arena.registration.dataset import name_to_dataset
+from lagarnet.controllers.prioritised_dataset import \
+    PrioritisedTrajectoryDataset, PrioritisedSampler
+from lagarnet.controllers.count_based_dataset import \
+    CountBasedDataset, CountBasedSampler
 
 def reward_bonus_and_penalty(rewards, observations, actions):
     if isinstance(rewards, torch.Tensor):
@@ -23,6 +27,8 @@ def reward_bonus_and_penalty(rewards, observations, actions):
 
     above_0_9_5 = observations['normalised_coverage'][:] > 0.95
     rewards_[above_0_9_5] = 0.7
+
+    #print('HERRR!!!!')
 
 
     return rewards
@@ -47,7 +53,9 @@ def main():
     args = parse_arguments()
 
     disp = args.disp == 1  # Convert disp to boolean directly
-
+    name_to_dataset['prioritised'] = PrioritisedTrajectoryDataset
+    name_to_dataset['count-based'] = CountBasedDataset
+    
     #agent_name = "planet-clothpick++"
     trained_arena = f"softgym|domain:clothfunnels-realadapt-{args.object},task:flattening,horizon:30"
 
@@ -64,10 +72,12 @@ def main():
     arena = ag_ar.build_arena(f"{trained_arena},disp:{disp}")
     if args.wm == 'rssm':
         agent = RSSM(config)
-    # elif args.wm == 'gc_rssm':
-    #     agent = GC_RSSM(config)
+    elif args.wm == 'gc_rssm':
+        agent = GC_RSSM(config)
     else:
         raise ValueError(f"Unknown world model: {args.wm}")
+    
+    
     
     if config.get('apply_transform_in_dataset', False):
         agent.set_reward_processor(reward_bonus_and_penalty)

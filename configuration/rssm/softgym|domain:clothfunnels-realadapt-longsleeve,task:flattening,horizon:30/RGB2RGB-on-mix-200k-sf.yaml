@@ -110,7 +110,7 @@ datasets:
     name: 'default'
     params:
       data_path: 'gc_longsleeve_flattening_offline_rl_mix_200k_compressed' #'diffusion_policy_on_softgym|domain:cloth-funnel-real2sim-longsleeve,task:flattening,horizon:20'
-      data_dir: './data/'
+      data_dir: './data/datasets/'
       seq_length: 50
       cross_trajectory: True
       split_ratios: [0.01, 0.01, 0.98]
@@ -144,7 +144,7 @@ datasets:
     name: 'default'
     params:
       data_path: 'gc_longsleeve_flattening_offline_rl_mix_200k_compressed'
-      data_dir: './data/'
+      data_dir: './data/datasets/'
       seq_length: 20
       cross_trajectory: False
       io_mode: 'r'

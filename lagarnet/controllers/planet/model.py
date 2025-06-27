@@ -143,12 +143,24 @@ class TransitionModel(nn.Module):
 
 class RewardModel(nn.Module):
     def __init__(self, belief_size, state_size, hidden_size, 
-                 activation_function='relu', output_mode=None):
+                 activation_function='relu', output_mode=None, num_layers=3):
         super().__init__()
         self.act_fn = getattr(F, activation_function)
         self.fc1 = nn.Linear(belief_size + state_size, hidden_size)
         self.fc2 = nn.Linear(hidden_size, hidden_size)
         self.fc3 = nn.Linear(hidden_size, 1)
+        self.num_layers = num_layers
+        
+        if num_layers > 3:
+
+            layers = [nn.Linear(belief_size + state_size, hidden_size), nn.ReLU()]
+            for i in range(num_layers-2):
+                layers.append(nn.Linear(hidden_size, hidden_size))
+                layers.append(nn.ReLU())
+            layers.append(nn.Linear(hidden_size, 1))
+
+            self.layers = nn.Sequential(*layers)
+
         self.output_mode = output_mode
 
     def forward(self, belief, state):
@@ -158,9 +170,12 @@ class RewardModel(nn.Module):
         squeezed_size = np.prod(batch_shape).item()
         x = x.reshape(squeezed_size, embed_size)
 
-        hidden = self.act_fn(self.fc1(x))
-        hidden = self.act_fn(self.fc2(hidden))
-        output = self.fc3(hidden)
+        if self.num_layers == 3:
+            hidden = self.act_fn(self.fc1(x))
+            hidden = self.act_fn(self.fc2(hidden))
+            output = self.fc3(hidden)
+        else:
+            output = self.layers(x)
 
         shape = output.shape[1:]
 

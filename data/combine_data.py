@@ -1,9 +1,9 @@
-import os
-## add the parent directory to the system path
-import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# import os
+# ## add the parent directory to the system path
+# import sys
+# sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from utils import obs_config, obs_config_, compress_obs_config, action_config, reward_names, plot_results, evaluation_names
+from lagarnet.utils import obs_config, obs_config_, compress_obs_config, action_config, reward_names, plot_results, evaluation_names
 from agent_arena.utilities.trajectory_dataset \
     import TrajectoryDataset
 import argparse
@@ -18,19 +18,16 @@ def main():
     args = parser.parse_args()
 
     data_path = [
-        'gc_longsleeve_flattening_offline_rl_diffusion_100k_extra_compressed',
         'gc_longsleeve_flattening_offline_rl_diffusion_200k_compressed',
         'gc_longsleeve_flattening_offline_rl_mask_biased_200k_compressed',
-
     ]
 
     need_trj_nums = [
         5000,
         10000,
-        5000,
     ]
 
-    target_datadir = f'gc_{args.obj}_flattening_offline_rl_mix_300k_2ratio1'
+    target_datadir = f'gc_{args.obj}_flattening_offline_rl_diffusion_300k_compressed'
 
 
     datasets = []

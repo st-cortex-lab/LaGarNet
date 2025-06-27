@@ -2,7 +2,7 @@ import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from utils import obs_config, compress_obs_config, \
+from lagarnet.utils import obs_config, compress_obs_config, \
     action_config, reward_names, obs_config_, plot_results, evaluation_names
 from agent_arena.utilities.trajectory_dataset \
     import TrajectoryDataset

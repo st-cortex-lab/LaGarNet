@@ -4,8 +4,8 @@ import os
 
 import agent_arena as ag_ar
 
-from controllers.planet.rssm import RSSM
-# from controllers.gc_rssm import GC_RSSM
+from lagarnet.controllers.planet.rssm import RSSM
+from lagarnet.controllers.gc_rssm import GC_RSSM
 
 def parse_arguments():
     """Parse command-line arguments."""
@@ -20,6 +20,7 @@ def parse_arguments():
     parser.add_argument('--verbose', default='silence', type=str)
     parser.add_argument('--disp', default=0, type=int)
     parser.add_argument('--eval_checkpoint', default='-1', type=int)
+    parser.add_argument('--debug', action='store_true')
 
     return parser.parse_args()
 
@@ -36,6 +37,7 @@ def main():
         trained_arena, 
         args.config,
         config_dir='configuration')
+    config.debug = args.debug
     # create_message_logger(config.save_dir, args.verbose)
     model_dir = os.path.join(args.model_dir, args.wm, trained_arena, args.config)
     #save_dir = os.path.join(args.save_dir, agent_name, args.config, args.test_object)
@@ -44,8 +46,8 @@ def main():
     arena = ag_ar.build_arena(f"{eval_arena},disp:{disp}")
     if args.wm == 'rssm':
         agent = RSSM(config)
-    # elif args.wm == 'gc_rssm':
-    #     agent = GC_RSSM(config)
+    elif args.wm == 'gc_rssm':
+        agent = GC_RSSM(config)
     else:
         raise ValueError(f"Unknown world model: {args.wm}")
 
