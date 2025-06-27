@@ -18,8 +18,8 @@ def main():
     args = parser.parse_args()
 
     data_path = [
-        'gc_longsleeve_flattening_offline_rl_diffusion_100k_extra_compressed',
         'gc_longsleeve_flattening_offline_rl_diffusion_200k_compressed',
+        'gc_longsleeve_flattening_offline_rl_mask_biased_200k_compressed',
     ]
 
     need_trj_nums = [
