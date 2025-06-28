@@ -9,7 +9,7 @@ from dotmap import DotMap
 def main():
 
    
-    arena_name = 'softgym|domain:clothfunnel-realadapt-longsleeve,task:flattening,horizon:10'
+    arena_name = 'softgym|domain:clothfunnels-realadapt-longsleeve,task:flattening,horizon:10'
     agent_name = 'oracle-garment|mask-biased-pick-and-place'
 
 
