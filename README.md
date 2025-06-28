@@ -8,6 +8,59 @@
 
 3. run `test_sim.py` to make the environment works.
 
+# I. Real-World Trials
+
+We use `ROS2 Humble` to setup our real-robot experiments.
+
+## 1. Set up the UR3e robot
+
+We use `robot-control-cloth` repository to assist this process. TODO: put the link.
+
+After making the above repository correctly installed.
+
+In the first terminal,
+```
+source /opt/ros/humble/setup.sh
+
+ros2 launch ur_robot_driver ur_control.launch.py ur_type:=ur3e robot_ip:=192.168.1.15 launch_rviz:=false
+
+```
+
+You may need to chagne the `robot_ip` to fit your setup.
+
+## 2. Initialised MoveIt!
+
+In the second terminal, go to the workspace that setup up `robot-control-cloth`. Then, run the following command to intialise MoveIt!
+
+```
+source /opt/ros/humble/setup.bash
+source ./rcc_build/install/setup.sh
+
+ros2 launch rcc_qs_pnp \
+    ur_robot_moveit_executable_launch.py \
+    ur_type:=ur3e \
+    executable:=quasi_static_pick_and_place.py \
+    planner:=ompl
+
+```
+
+## 3. Setup LaGarNet for Real World Experiment
+
+
+1. Make sure the `agent-arena-v0` root directory, swith to branch `ros2-humble`. Then, build its conda environment under this branch by following the tutorial of agent-arena.
+
+2. In a third terminal, go to the root of this `LaGarNet` repo
+```
+. ./setup.sh real-world
+```
+
+## 4. Run real-world experiments
+
+```
+python ur3e_control.py --wm mask-biased-random
+
+```
+
 # Collect Data
 
 ## Longsleeve
@@ -129,48 +182,4 @@ python cloth_funnels/tasks/generate_tasks.py \
     --scale 0.4
 ```
 
-# Real-World Trials
 
-We use `ROS2 Humble` to setup our real-robot experiments.
-
-## 1. Set up the UR3e robot
-
-We use `robot-control-cloth` repository to assist this process. TODO: put the link.
-
-After making the above repository correctly installed.
-
-In the first terminal,
-```
-source /opt/ros/humble/setup.sh
-
-ros2 launch ur_robot_driver ur_control.launch.py ur_type:=ur3e robot_ip:=192.168.1.15 launch_rviz:=false
-
-```
-
-You may need to chagne the `robot_ip` to fit your setup.
-
-## 2. Initialised MoveIt!
-
-In the second terminal, go to the workspace that setup up `robot-control-cloth`. Then, run the following command to intialise MoveIt!
-
-```
-source /opt/ros/humble/setup.bash
-source ./rcc_build/install/setup.sh
-
-ros2 launch rcc_qs_pnp \
-    ur_robot_moveit_executable_launch.py \
-    ur_type:=ur3e \
-    executable:=quasi_static_pick_and_place.py \
-    planner:=ompl
-
-```
-
-## 3. Setup LaGarNet for Real World Experiment
-
-
-1. Make sure the `agent-arena-v0` root directory, swith to branch `ros2-humble`. Then, build its conda environment under this branch by following the tutorial of agent-arena.
-
-2. Go to the root of this `LaGarNet` repo
-```
-. ./setup.sh real-world
-```
