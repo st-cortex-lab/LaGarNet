@@ -35,7 +35,7 @@ action_output:
 
 dataset_mode: "general"
 dataset_config:
-  data_path: "clothfunnels-pants-human-flattening-50.zarr"
+  data_path: "skirt-human-flattening-50"
   seq_length: 1
   obs_config:
     mask: 

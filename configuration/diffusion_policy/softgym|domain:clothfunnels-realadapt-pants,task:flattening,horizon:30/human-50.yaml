@@ -9,7 +9,9 @@ use_mask: True
 eval_action_sampler: 'normal'
 include_state: False
 
-readjust_pick: True
+readjust_pick: True #TODO: this is pick and place specific
+swap_pick_and_place: False
+
 data_obs: 'image'
 data_state: 'agent_pos'
 data_action: 'action'
@@ -33,7 +35,7 @@ action_output:
 
 dataset_mode: "general"
 dataset_config:
-  data_path: "cloth-funnel-longsleeves-human-flattening.zarr"
+  data_path: "pants-human-flattening-50"
   seq_length: 1
   obs_config:
     mask: 
@@ -43,6 +45,10 @@ dataset_config:
     depth: 
       shape: [128, 128, 1]
       output_key: 'depth'
+
+    color: 
+      shape: [128, 128, 3]
+      output_key: 'rgb'
 
   act_config:
     norm_pixel_pick_and_place: 
@@ -62,6 +68,7 @@ transform:
     action_noise: 0.0
     maskout: True
     bg_value: 0.0
+    swap_action: True
 
     depth_clip: True
     depth_clip_min: 1.8
@@ -75,3 +82,7 @@ transform:
     depth_flip: True
     depth_blur_kernel_size: 11
     depth_noise_var: 0.01
+
+
+    ## For testing
+    rgb_noise_factor: 0.0

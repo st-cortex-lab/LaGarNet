@@ -35,27 +35,27 @@ def visualise_action_inference(internal_states, save_dir=None):
     if len(internal_states) == 0:
         return
 
-    print('internal_states', internal_states[0].keys())
+    #print('internal_states', internal_states[0].keys())
 
     interation_means = [its['iteration_means'] for its in internal_states] # T * I * 1 * 4
     interation_means = np.stack(interation_means, axis=0)
-    print('iteration_means', interation_means.shape)
+    #print('iteration_means', interation_means.shape)
     input_obs = [its['input_obs'] for its in internal_states]
     input_obs = (np.stack(input_obs, axis=0)[:, :, :, :3].clip(0, 1) * 255).astype(np.uint8)
-    print('input_obs', input_obs.shape)
+    #print('input_obs', input_obs.shape)
 
     recon_obs = [its['recon_obs'] for its in internal_states]
     recon_obs = (np.stack(input_obs, axis=0)[:, :, :, :3].clip(0, 1) * 255).astype(np.uint8)
-    print('recon_obs', recon_obs.shape)
+    #print('recon_obs', recon_obs.shape)
     if recon_obs.shape[-1] == 1:
         recon_obs = np.repeat(recon_obs, 3, axis=-1)
-        print(f'Converted grayscale to RGB: {recon_obs.shape}')
+        #print(f'Converted grayscale to RGB: {recon_obs.shape}')
 
 
 
     posterior_rewards = [its['posterior_reward'] for its in internal_states] # T * I
     posterior_rewards = np.stack(posterior_rewards, axis=0)
-    print('posterior_rewards', posterior_rewards)
+    #print('posterior_rewards', posterior_rewards)
 
     prior_rewards = []
 
@@ -104,21 +104,21 @@ def visualise_action_inference(internal_states, save_dir=None):
         last_samples = last_samples[np.argsort(last_costs)]
         # sort last_costs
         last_costs = np.sort(last_costs)
-        print('last_samples', last_samples.shape)
-        print('last_costs', last_costs.shape)
+        # print('last_samples', last_samples.shape)
+        # print('last_costs', last_costs.shape)
         # evenly choose S samples
         chosen_samples = last_samples[::len(last_samples)//S, :].reshape(-1, 4)
         #print('chosen_samples 1', chosen_samples.shape)
         # add the last sample
         #chosen_samples = np.append(chosen_samples, last_samples[-1])
         chosen_costs = -last_costs[::len(last_costs)//S]
-        print('chosen costs')
+        #print('chosen costs')
         prior_rewards.append(chosen_costs[0])
         chosen_samples_list.append(chosen_samples[::-1])
         chosen_costs_list.append(chosen_costs[::-1])
         #chosen_costs = np.append(chosen_costs, last_costs[-1])
-        print('chosen_samples', chosen_samples.shape)
-        print('chosen_costs', chosen_costs.shape)
+        # print('chosen_samples', chosen_samples.shape)
+        # print('chosen_costs', chosen_costs.shape)
 
     high_reward_color = np.array([52, 255, 0]) # when reward is 0.5
     low_reward_color = np.array([139, 0, 0]) # when reward is -0.5
