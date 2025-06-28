@@ -247,12 +247,11 @@ if __name__ == "__main__":
         raise ValueError(f"Unknown world model: {args.agent}")
     
     #logger = ag_ar.build_logger(arena.logger_name, config.save_dir)
-    save_dir = os.path.join(
-        args.log_dir, f'{args.agent}-{args.config}')
+    
     model_dir = os.path.join(args.log_dir, trained_arena, f'{args.agent}', f'{args.config}')
     agent.set_log_dir(model_dir)
 
-    config_file = os.path.join('configs', args.sampler_config + '.yaml')
+    config_file = os.path.join('configuration/sampler_config', args.sampler_config + '.yaml')
    
     with open(config_file, 'r') as f:
         worspace_sampler_config = yaml.safe_load(f)
@@ -273,7 +272,7 @@ if __name__ == "__main__":
 
     workspace_sampler = WorkspaceSamplerPlaNetClothPick(
         worspace_sampler_config)
-    workspace_sampler.set_log_dir(save_dir)
+    
 
     checkpoint = -1
 
@@ -283,7 +282,9 @@ if __name__ == "__main__":
         else:
             agent.load_checkpoint(int(args.eval_checkpoint))
             checkpoint = args.eval_checkpoint
-    config_name = args.agent + '+' + args.sampler_config + '+' + args.config
+    save_dir = os.path.join(
+        args.save_dir, f'{args.agent}-{args.config}-{checkpoint}')
+    workspace_sampler.set_log_dir(save_dir)
     print('Finsh Initialising Agent ...')
 
     sim2real = None
@@ -292,13 +293,14 @@ if __name__ == "__main__":
         
         ### Run Sim2Real ###
         sim2real = AgentArenaInterface(
-            workspace_sampler,config_name, 
-            checkpoint, 
+            workspace_sampler,
+            #config_name, 
+            #checkpoint, 
             task=args.task, 
             adjust_orien=adjust_orien, 
             adjust_pick=adjust_pick,
             steps=20,
-            save_dir=args.save_dir,
+            save_dir=save_dir,
             depth_sim2real=args.depth_sim2real,
             mask_sim2real=args.mask_sim2real,
             sim_camera_height=args.sim_camera_height,
