@@ -171,12 +171,11 @@ def parse_arguments():
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser()
     parser.add_argument('--task', default='flattening')
-    parser.add_argument('--log_dir', default='/data/models')
+    parser.add_argument('--log_dir', default='test_results/models')
     parser.add_argument('--save_dir', default='./real_results')
-    #parser.add_argument('--store_interm', action='store_true', help='store intermediate results')
     parser.add_argument('--eval_checkpoint', default=-1, type=int)
 
-    parser.add_argument('--config',  default='RGB2M-on-mix-200k-sf')
+    parser.add_argument('--config',  default='final')
     parser.add_argument('--object', default='longsleeve', type=str)
     parser.add_argument('--sampler_config', default='cloth-mask-centre-multiple-prioritise-middle', type=str)
 
@@ -193,7 +192,7 @@ def parse_arguments():
     parser.add_argument('--goal_conditioned', action='store_true')
 
     parser.add_argument('--debug', action='store_true')
-    parser.add_argument('--wm', default='rssm', type=str)
+    parser.add_argument('--agent', default='rssm', type=str)
 
 
 
@@ -215,9 +214,9 @@ if __name__ == "__main__":
     adjust_pick= not args.disable_adj_pick
     adjust_orien= not args.disable_adj_orient
 
-    if args.wm in ['rssm', 'gc_rssm']:
+    if args.agent in ['rssm', 'gc_rssm']:
         config = agar.retrieve_config(
-            args.wm, 
+            args.agent, 
             trained_arena, 
             args.config,
             config_dir='configuration')
@@ -235,22 +234,22 @@ if __name__ == "__main__":
 
     #agent = agar.build_agent(agent_name, config)
     
-    if args.wm == 'rssm':
+    if args.agent == 'rssm':
         agent = RSSM(config)
         agent.set_eval()
-    elif args.wm == 'gc_rssm':
+    elif args.agent == 'gc_rssm':
         agent = GC_RSSM(config)
         agent.set_eval()
-    elif args.wm == 'mask-biased-random':
+    elif args.agent == 'mask-biased-random':
         agent = GarmentMaskBiasedPixelPickAndPlacePolicy(DotMap())
         args.config = 'default'
     else:
-        raise ValueError(f"Unknown world model: {args.wm}")
+        raise ValueError(f"Unknown world model: {args.agent}")
     
     #logger = ag_ar.build_logger(arena.logger_name, config.save_dir)
     save_dir = os.path.join(
-        args.log_dir, f'ws_smplr_{args.wm}', f'{args.config}+{args.sampler_config}')
-    model_dir = os.path.join(args.log_dir, trained_arena, f'{args.wm}', f'{args.config}')
+        args.log_dir, f'{args.agent}-{args.config}')
+    model_dir = os.path.join(args.log_dir, trained_arena, f'{args.agent}', f'{args.config}')
     agent.set_log_dir(model_dir)
 
     config_file = os.path.join('configs', args.sampler_config + '.yaml')
@@ -261,7 +260,7 @@ if __name__ == "__main__":
     worspace_sampler_config['agent'] = agent
     
 
-    if args.wm in ['rssm', 'gc_rssm']:
+    if args.agent in ['rssm', 'gc_rssm']:
         worspace_sampler_config['checkpoint'] = int(args.eval_checkpoint)
         worspace_sampler_config['policy'] = {'params': config.policy.params}
 
@@ -284,7 +283,7 @@ if __name__ == "__main__":
         else:
             agent.load_checkpoint(int(args.eval_checkpoint))
             checkpoint = args.eval_checkpoint
-    config_name = args.wm + '+' + args.sampler_config + '+' + args.config
+    config_name = args.agent + '+' + args.sampler_config + '+' + args.config
     print('Finsh Initialising Agent ...')
 
     sim2real = None

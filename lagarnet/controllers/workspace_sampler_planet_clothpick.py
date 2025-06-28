@@ -65,7 +65,7 @@ class WorkspaceSamplerPlaNetClothPick(WorkspaceSampler):
 
             # Generate a list of new infos with different arena_ids and workspace
             new_infos = self._sample_workspace(info)
-            print('new_infos:', len(new_infos))
+            #print('new_infos:', len(new_infos))
             arena_ids = [info['arena_id'] for info in new_infos]
 
             # Always refresh the agent's state
@@ -120,7 +120,7 @@ class WorkspaceSamplerPlaNetClothPick(WorkspaceSampler):
         goal_mask_ = None
         goal_rgb_ = None
         if 'goal' in info:
-            print('goal in info')
+            #print('goal in info')
             goal_depth = info['goal']['depth']
             goal_mask = info['goal']['mask']
             goal_rgb = info['goal']['rgb']
@@ -129,7 +129,7 @@ class WorkspaceSamplerPlaNetClothPick(WorkspaceSampler):
             goal_rgb_ = goal_rgb[H//2 - L//2:H//2 + L//2, W//2 - L//2:W//2 + L//2]
         
         new_infos = []
-        print('prioritise_middle:', self.prioritise_middle)
+        #print('prioritise_middle:', self.prioritise_middle)
         if self.prioritise_middle:
             y_centre = W//2
             x_centre = H//2
@@ -137,7 +137,7 @@ class WorkspaceSamplerPlaNetClothPick(WorkspaceSampler):
             crop_y = max(y_centre - L//2, 0)
             mask_ = mask[crop_x:crop_x+L, crop_y:crop_y+L]
             if np.sum(mask_) > 0:
-                print('Choose the middle window')
+                #print('Choose the middle window')
                 new_infos.append(
                     self._get_new_info(crop_x, crop_y, L, rgb, depth, mask, 
                                     cloth_workspace_mask, workspace_mask, 
@@ -194,7 +194,7 @@ class WorkspaceSamplerPlaNetClothPick(WorkspaceSampler):
         new_info['observation']['depth'] = depth[crop_x:crop_x+L, crop_y:crop_y+L]
         new_info['observation']['workspace_mask'] = workspace_mask[crop_x:crop_x+L, crop_y:crop_y+L]
         for key in new_info['observation'].keys():
-            print('key:', key, 'shape:', new_info['observation'][key].shape)
+            #print('key:', key, 'shape:', new_info['observation'][key].shape)
             # Special case for RGB arrays (3 channels)
             arr = new_info['observation'][key]
             pad_width = [(self.config.padding, self.config.padding),
@@ -331,7 +331,7 @@ class WorkspaceSamplerPlaNetClothPick(WorkspaceSampler):
         x = min(mask.shape[0]-1, x)
         y = min(mask.shape[1]-1, y)
         if mask[x, y]:
-            print('There is no need to reajust!!!!')
+            #print('There is no need to reajust!!!!')
             return np.array([x, y])
     
         # get the x and y coordinates of the nearest pixel on the mask
