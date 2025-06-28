@@ -1,0 +1,1 @@
+It is top-down camera setting.
