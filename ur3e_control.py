@@ -248,7 +248,7 @@ if __name__ == "__main__":
     
     #logger = ag_ar.build_logger(arena.logger_name, config.save_dir)
     save_dir = os.path.join(
-        args.log_dir, f'ws_smplr_{args.agent}', f'{args.config}+{args.sampler_config}')
+        args.log_dir, f'{args.agent}-{args.config}')
     model_dir = os.path.join(args.log_dir, trained_arena, f'{args.agent}', f'{args.config}')
     agent.set_log_dir(model_dir)
 
