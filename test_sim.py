@@ -3,13 +3,13 @@ import agent_arena.api as ag_ar
 from agent_arena.utilities.perform_single import perform_single
 import matplotlib.pyplot as plt
 import numpy as np
-from planet_clothpick_plus_plus.utils import plot_results
+from lagarnet.utils import plot_results
 from dotmap import DotMap
 
 def main():
 
    
-    arena_name = 'softgym|domain:cloth-funnel-realadapt-longsleeve,task:flattening,horizon:10'
+    arena_name = 'softgym|domain:clothfunnel-realadapt-longsleeve,task:flattening,horizon:10'
     agent_name = 'oracle-garment|mask-biased-pick-and-place'
 
 
