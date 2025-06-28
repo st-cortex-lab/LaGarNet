@@ -137,7 +137,7 @@ class WorkspaceSamplerPlaNetClothPick(WorkspaceSampler):
             crop_y = max(y_centre - L//2, 0)
             mask_ = mask[crop_x:crop_x+L, crop_y:crop_y+L]
             if np.sum(mask_) > 0:
-                print('Choose the middle window')
+                #print('Choose the middle window')
                 new_infos.append(
                     self._get_new_info(crop_x, crop_y, L, rgb, depth, mask, 
                                     cloth_workspace_mask, workspace_mask, 

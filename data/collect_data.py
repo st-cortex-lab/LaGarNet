@@ -1,40 +1,4 @@
-"""
-This script is designed to collect one-picker pick-and-place
-longsleeve flattening data from simulation. 
-
-The special engineered policies include the following:
-    - border-biased-pick-and-place (30%)
-    - cloth-mask-random-pick-and-place (40%)
-    - diffusion-expert (20%)
-    - mix-policy (10%)
-In order to include policies that can be used to achieve reasonablly well flattening trajectories. 
-We also used trained diffusion policy trained by human data.
-
-We eliminiate the purly random policy, as it is not useful for achieving the task. We will use
-cloth-mask filter on the learned policy anyway.
-
-In this collection, we aim to collect 35,000 trajectories with 30 steps horizon for each.
-We will run 4 parallel processes to speed up the collection.
-
-The transitional data includes:
-    - RGB images
-    - Depth images
-    - Masks
-    - particle positions
-    - Actions
-    - all possible rewards in the literature
-    - step-wise evaluations
-
-In order to make it run correctly, we need to have the following:
-    - Real2Sim environment based on cloth-funnel's env.
-    - a realitivly well-performned diffusoin policy.
-    - all possible rewards produces correct values.
-    - make sure step-wise collected data is correct.
-    - make sure planet-clothpick can run a small amount of data.
-
-"""
 import os
-## add the parent directory to the system path
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
@@ -130,7 +94,7 @@ def argument_parser():
     parser.add_argument('--trials', type=int, default=10)
     parser.add_argument('--parallel_processes', type=int, default=4)
     parser.add_argument('--agent_name', type=str, default='oracle-garment|mask-biased-pick-and-place')
-    parser.add_argument('--agent_config_name', type=str, default='masked-depth-human-50')
+    parser.add_argument('--agent_config_name', type=str, default='human-50')
     parser.add_argument('--agent_trained_arena_name', type=str, default='softgym|domain:clothfunnels-realadapt-longsleeve,task:flattening,horizon:30')
     parser.add_argument('--arena_name', type=str, default='softgym|domain:clothfunnels-realadapt-longsleeve,task:flattening,horizon:20')
     parser.add_argument('--agent_save_dir', type=str, default='/data/planet-clothpick++')

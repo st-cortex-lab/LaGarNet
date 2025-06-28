@@ -36,10 +36,8 @@ def reward_bonus_and_penalty(rewards, observations, actions):
 def parse_arguments():
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser()
-    # parser.add_argument('--arena', default='')
-    #parser.add_argument('--agent', default='planet')
-    parser.add_argument('--config', default='RGB2RGB-on-all-garment-800k')
-    parser.add_argument('--wm', default='rssm', type=str)
+    parser.add_argument('--config', default='final')
+    parser.add_argument('--agent', default='gc_rssm', type=str)
     parser.add_argument('--log_dir', default='test_results/models')
     parser.add_argument('--object', default='longsleeve', type=str)
     parser.add_argument('--verbose', default='silence', type=str)
@@ -60,22 +58,22 @@ def main():
     trained_arena = f"softgym|domain:clothfunnels-realadapt-{args.object},task:flattening,horizon:30"
 
     config = ag_ar.retrieve_config(
-        args.wm, 
+        args.agent, 
         trained_arena, 
         args.config,
         config_dir='configuration')
     # create_message_logger(config.save_dir, args.verbose)
-    save_dir = os.path.join(args.log_dir, args.wm, trained_arena, args.config)
+    save_dir = os.path.join(args.log_dir, args.agent, trained_arena, args.config)
     
    
 
     arena = ag_ar.build_arena(f"{trained_arena},disp:{disp}")
-    if args.wm == 'rssm':
+    if args.agent == 'rssm':
         agent = RSSM(config)
-    elif args.wm == 'gc_rssm':
+    elif args.agent == 'gc_rssm':
         agent = GC_RSSM(config)
     else:
-        raise ValueError(f"Unknown world model: {args.wm}")
+        raise ValueError(f"Unknown world model: {args.agent}")
     
     
     
