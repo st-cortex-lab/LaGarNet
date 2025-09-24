@@ -17,7 +17,7 @@ This repository provide simulation and real-world experiments for LaGarNet robot
 
 ## II. Installation & Setup
 
-1. Clone and install [`agent-arena-v0`](https://github.com/halid1020/agent-arena-v0). For simulation training and experiments, you can build from the `main` branch, but for real-world experiments, you should build in from the `ros2-humble` branch.
+1. Clone and install [`agent-arena-v0`](https://github.com/halid1020/agent-arena-v0). For simulation training and experiments, you can build from the `v0.0` branch, but for real-world experiments, you should build from the `ros2-humble` branch.
 
 2. Clone and install our fork of [`softgym`](https://github.com/halid1020/softgym); this is only for simulation experiments and policy training. For real-world experiments, this repo is not needed.
     * For simulation experiments, download and unzip `cloth_funnel` folder under `agent-arena-v0/data` folder. **TODO: make sure this step works.**
