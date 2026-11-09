@@ -2,7 +2,7 @@
 
 import argparse
 
-import agent_arena.api as ag_ar
+import actoris_harena.api as ag_ar
 from ..controllers.workspace_sampler_planet_clothpick \
     import WorkspaceSamplerPlaNetClothPick
 from ..controllers.planet.rssm import RSSM
@@ -14,8 +14,8 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 
-from agent_arena.utilities.perform_single import perform_single
-from agent_arena.utilities.visual_utils import plot_image_trajectory
+from actoris_harena.utilities.perform_single import perform_single
+from actoris_harena.utilities.visual_utils import plot_image_trajectory
 
 def save_depth_distribution(depth_image, filename='depth_distribution', directory="."):
     """

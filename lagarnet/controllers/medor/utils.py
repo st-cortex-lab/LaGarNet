@@ -96,8 +96,8 @@ def get_world_coords(rgb, depth, matrix_world_to_camera=None, env=None):
     fx = K[0, 0]
     fy = K[1, 1]
 
-    x = np.linspace(0, width - 1, width).astype(np.float)
-    y = np.linspace(0, height - 1, height).astype(np.float)
+    x = np.linspace(0, width - 1, width).astype(float)
+    y = np.linspace(0, height - 1, height).astype(float)
     u, v = np.meshgrid(x, y)
     one = np.ones((height, width, 1))
     x = (u - u0) * depth / fx

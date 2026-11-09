@@ -9,8 +9,8 @@ from dotmap import DotMap
 from matplotlib import cm
 import rclpy
 
-import agent_arena as agar
-from agent_arena import TrainableAgent
+import actoris_harena as agar
+from actoris_harena import TrainableAgent
 
 import argparse
 from robot_control_cloth.interface.utils import *
@@ -20,7 +20,7 @@ from lagarnet.controllers.workspace_sampler_planet_clothpick \
     import WorkspaceSamplerPlaNetClothPick
 from lagarnet.controllers.planet.rssm import RSSM
 
-from agent_arena.utilities.visual_utils import \
+from actoris_harena.utilities.visual_utils import \
     draw_pick_and_place, plot_image_trajectory
 from lagarnet.controllers.gc_rssm import GC_RSSM
 from lagarnet.controllers.mask_biased_pixel_pick_and_place_policy \

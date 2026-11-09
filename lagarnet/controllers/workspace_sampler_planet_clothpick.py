@@ -1,8 +1,8 @@
 import os
 import numpy as np
-from agent_arena.utilities.visual_utils \
+from actoris_harena.utilities.visual_utils \
     import draw_pick_and_place
-from agent_arena import TrainableAgent
+from actoris_harena import TrainableAgent
 
 from matplotlib import pyplot as plt
 

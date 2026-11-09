@@ -2,7 +2,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 import numpy as np
 
-from agent_arena import TrajectoryDataset
+from actoris_harena import TrajectoryDataset
 
 class CountBasedDataset(TrajectoryDataset):
 

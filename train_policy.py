@@ -4,10 +4,10 @@ import os
 import numpy as np
 import torch
 
-import agent_arena as ag_ar
+import actoris_harena as ag_ar
 from lagarnet.controllers.planet.rssm import RSSM
 from lagarnet.controllers.gc_rssm import GC_RSSM
-from agent_arena.registration.dataset import name_to_dataset
+from actoris_harena.registration.dataset import name_to_dataset
 from lagarnet.controllers.prioritised_dataset import \
     PrioritisedTrajectoryDataset, PrioritisedSampler
 from lagarnet.controllers.count_based_dataset import \

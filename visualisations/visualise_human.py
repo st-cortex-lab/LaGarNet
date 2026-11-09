@@ -1,6 +1,6 @@
 import argparse
-import agent_arena.api as ag_ar
-from agent_arena.utilities.perform_single import perform_single
+import actoris_harena.api as ag_ar
+from actoris_harena.utilities.perform_single import perform_single
 import os
 import numpy as np
 from utils import obs_config, action_config, reward_names, \

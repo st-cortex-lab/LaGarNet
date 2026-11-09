@@ -16,11 +16,11 @@ from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity as LPI
 from torchmetrics.image.kid import KernelInceptionDistance
 from torchmetrics.image.fid import FrechetInceptionDistance
 
-import agent_arena.api as ag_ar
-from agent_arena.utilities.visual_utils import plot_image_trajectory, plot_pick_and_place_trajectory
-from agent_arena.utilities.trajectory_dataset \
+import actoris_harena.api as ag_ar
+from actoris_harena.utilities.visual_utils import plot_image_trajectory, plot_pick_and_place_trajectory
+from actoris_harena.utilities.trajectory_dataset \
     import TrajectoryDataset
-from agent_arena.agent.utilities.torch_utils import *
+from actoris_harena.agent.utilities.torch_utils import *
 
 
 from lagarnet.utils import obs_config, compress_obs_config, reward_names, plot_results, evaluation_names

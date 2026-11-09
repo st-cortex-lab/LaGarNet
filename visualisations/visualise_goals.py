@@ -1,4 +1,4 @@
-import agent_arena.api as ag_ar
+import actoris_harena.api as ag_ar
 from matplotlib import pyplot as plt
 import argparse
 

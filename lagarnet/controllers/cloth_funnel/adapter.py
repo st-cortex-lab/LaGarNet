@@ -2,16 +2,16 @@ import os
 import numpy as np
 import cv2
 
-from agent_arena import TrainableAgent
-from agent_arena.utilities.utils import TrainWriter
+from actoris_harena import TrainableAgent
+from actoris_harena.utilities.utils import TrainWriter
 import torch
 from itertools import product
 
 from .nets import MaximumValuePolicy
 from .utils import prepare_image, generate_primitive_cloth_mask,\
     generate_workspace_mask, transform, get_transform_matrix
-from agent_arena.utilities.torch_utils import np_to_ts
-from agent_arena.utilities.logger.logger_interface import Logger
+from actoris_harena.utilities.torch_utils import np_to_ts
+from actoris_harena.utilities.logger.logger_interface import Logger
 
 LOSS_NORMALIZATIONS = {
     'rigid':{

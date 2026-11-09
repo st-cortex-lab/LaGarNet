@@ -1,12 +1,12 @@
 import argparse
 
-import agent_arena.api as ag_ar
+import actoris_harena.api as ag_ar
 from planet_clothpick_plus_plus.controllers.workspace_sampler_planet_clothpick \
     import WorkspaceSamplerPlaNetClothPick
 from dotmap import DotMap
 import os
-from agent_arena.utilities.perform_single import perform_single
-from agent_arena.utilities.visual_utils import \
+from actoris_harena.utilities.perform_single import perform_single
+from actoris_harena.utilities.visual_utils import \
     draw_pick_and_place, plot_image_trajectory
 import numpy as np
 from matplotlib import cm

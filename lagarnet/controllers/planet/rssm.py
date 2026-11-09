@@ -16,13 +16,13 @@ from torch.distributions.kl import kl_divergence
 from torch.distributions import Normal
 import logging
 
-from agent_arena.agent.utilities.torch_utils import *
-from agent_arena.registration.dataset import *
-from agent_arena.agent.oracle.builder import OracleBuilder
-from agent_arena.utilities.utils import TrainWriter
-from agent_arena.utilities.transform.register import DATA_TRANSFORMER
-from agent_arena import RLAgent
-from agent_arena.utilities.logger.logger_interface import Logger
+from actoris_harena.agent.utilities.torch_utils import *
+from actoris_harena.registration.dataset import *
+from actoris_harena.agent.oracle.builder import OracleBuilder
+from actoris_harena.utilities.utils import TrainWriter
+from actoris_harena.utilities.transform.register import DATA_TRANSFORMER
+from actoris_harena import RLAgent
+from actoris_harena.utilities.logger.logger_interface import Logger
 
 from .networks import ImageEncoder, ImageDecoder
 from .memory import ExperienceReplay
@@ -111,7 +111,7 @@ class RSSM(RLAgent):
         planning_config.action_space = self.config.action_space
         planning_config.no_op = self.no_op
         
-        import agent_arena.api as ag_ar
+        import actoris_harena.api as ag_ar
         self.planning_algo = ag_ar.build_agent(
             self.config.policy.name,
             config=planning_config)
@@ -429,7 +429,9 @@ class RSSM(RLAgent):
         )
 
         torch.save(
-            self.metrics,
+            # Set only at a test_interval step; a run resumed mid-interval saves
+            # before reaching one.
+            getattr(self, 'metrics', {}),
             os.path.join(path, 'checkpoints', f'metrics_{self.update_step}.pth')
         )
 

@@ -17,12 +17,29 @@ This repository provide simulation and real-world experiments for LaGarNet robot
 
 ## II. Installation & Setup
 
-1. Clone and install [`agent-arena-v0`](https://github.com/halid1020/agent-arena-v0). For simulation training and experiments, you can build from the `v0.0` branch, but for real-world experiments, you should build from the `ros2-humble` branch.
+Put `LaGarNet`, [`actoris_harena`](https://github.com/st-cortex-lab/actoris_harena) and
+[`softgym`](https://github.com/st-cortex-lab/softgym) side by side in one directory.
 
-2. Clone and install our fork of [`softgym`](https://github.com/halid1020/softgym); this is only for simulation experiments and policy training. For real-world experiments, this repo is not needed.
-    * For simulation experiments, download and unzip `cloth_funnel` folder under `agent-arena-v0/data` folder. **TODO: make sure this step works.**
+1. Create the environment from actoris_harena's pinned requirements (`main` branch). This replaces
+   the old `agent-arena-v0` install; LaGarNet now imports `actoris_harena`.
 
-3. We use the `ros2-update` branch of [`robot-control-cloth`](https://github.com/halid1020/robot_control_cloth) repository to assist this process; please clone and build it under `ws_ur3e/src` directory, where `ws_ur3e` folder should be in parallel with `LaGarnet` and `agent-arena-v0` folders.
+    ```
+    conda create -n harena-sim python=3.10 -y && conda activate harena-sim
+    pip install -r ../actoris_harena/requirements/lagarnet.txt
+    pip install -e ../actoris_harena --no-deps
+    ```
+
+    `setup.sh` activates `harena-sim`; set `LAGARNET_CONDA_ENV` to use another environment.
+
+2. Build `pyflex` from the `py3.10` branch of `softgym`, following its README. This is only for
+   simulation experiments and policy training; real-world experiments do not need it.
+    * For simulation, the garment initial states go under `actoris_harena/../data/cloth_funnel/init_states`
+      (that is, a `data/cloth_funnel/init_states` directory beside the `actoris_harena` checkout): the
+      `multi-<garment>-{train,eval}.hdf5` files and their `clothfunnels-<garment>-{train,eval}.json` keys.
+    * On a hybrid-GPU laptop or a cluster node, `export __GLX_VENDOR_LIBRARY_NAME=nvidia __NV_PRIME_RENDER_OFFLOAD=1`
+      first, or pyflex falls back to Mesa and crashes at start-up.
+
+3. We use the `ros2-update` branch of [`robot-control-cloth`](https://github.com/halid1020/robot_control_cloth) repository to assist this process; please clone and build it under `ws_ur3e/src` directory, where `ws_ur3e` folder should be in parallel with `LaGarNet` and `actoris_harena` folders.
 
 
 ## III. Training Diffusion Policies & LaGarNet
@@ -161,7 +178,7 @@ This repository provide simulation and real-world experiments for LaGarNet robot
 4. Setup `LaGarNet` for real-world experiment. 
 
 
-    * Make sure the `agent-arena-v0` root directory, swith to branch `ros2-humble`. Then, build its conda environment under this branch by following the tutorial of agent-arena.
+    * Activate the environment from section II, and install the ROS 2 Humble packages robot-control-cloth needs.
 
     * In the third terminal, go to the `LaGarnet` repo, and run
         ```

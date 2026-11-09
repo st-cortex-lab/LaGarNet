@@ -1,6 +1,6 @@
 import argparse
 
-import agent_arena.api as ag_ar
+import actoris_harena.api as ag_ar
 from planet_clothpick_plus_plus.controllers.workspace_sampler_planet_clothpick \
     import WorkspaceSamplerPlaNetClothPick
 from dotmap import DotMap

@@ -1,7 +1,7 @@
 import numpy as np
 from scipy import ndimage
 
-from agent_arena import Agent
+from actoris_harena import Agent
 
 class GarmentMaskBiasedPixelPickAndPlacePolicy(Agent):
 

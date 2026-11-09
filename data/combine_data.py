@@ -4,7 +4,7 @@
 # sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from lagarnet.utils import obs_config, obs_config_, compress_obs_config, action_config, reward_names, plot_results, evaluation_names
-from agent_arena.utilities.trajectory_dataset \
+from actoris_harena.utilities.trajectory_dataset \
     import TrajectoryDataset
 import argparse
 from tqdm import tqdm as tdqm

@@ -1,8 +1,8 @@
 from planet_clothpick_plus_plus.utils import obs_config, action_config, compress_obs_config, reward_names, plot_results, evaluation_names
-from agent_arena.utilities.trajectory_dataset \
+from actoris_harena.utilities.trajectory_dataset \
     import TrajectoryDataset
 import argparse
-from agent_arena.utilities.transform.pick_and_place_transformer_v1 import PickAndPlaceTransformerV1
+from actoris_harena.utilities.transform.pick_and_place_transformer_v1 import PickAndPlaceTransformerV1
 from tqdm import tqdm
 from dotmap import DotMap
 ts_to_np = lambda x: x.cpu().detach().numpy()

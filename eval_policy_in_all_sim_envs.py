@@ -2,7 +2,7 @@ import sys
 import argparse
 import os
 
-import agent_arena as ag_ar
+import actoris_harena as ag_ar
 
 from lagarnet.controllers.planet.rssm import RSSM
 from lagarnet.controllers.gc_rssm import GC_RSSM

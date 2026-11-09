@@ -5,7 +5,7 @@ from torch import nn
 from torch.nn import functional as F
 import matplotlib.pyplot as plt
 
-from agent_arena.agent.utilities.torch_utils import *
+from actoris_harena.agent.utilities.torch_utils import *
 
 from .planet.rssm import RSSM
 from .planet.model import bottle, symlog

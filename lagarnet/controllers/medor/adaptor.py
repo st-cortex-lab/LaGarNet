@@ -1,6 +1,6 @@
 # Codes are borrowed from https://github.com/zxhuang97/medor/tree/main
 
-from agent_arena import TrainableAgent
+from actoris_harena import TrainableAgent
 from .utils import *
 
 class MedorAdaptor(TrainableAgent):
